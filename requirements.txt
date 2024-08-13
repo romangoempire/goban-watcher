@@ -1,0 +1,9 @@
+requests
+websockets
+icecream
+
+fastapi
+uvicorn
+python-multipart
+
+sgfmill

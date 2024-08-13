@@ -1,0 +1,10 @@
+{
+  "id": "foo",
+  "initialStones": [],
+  "moves": [["B", "C4"]],
+  "rules": "tromp-taylor",
+  "komi": 6.5,
+  "boardXSize": 19,
+  "boardYSize": 19,
+  "analyzeTurns": [0]
+}
