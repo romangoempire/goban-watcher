@@ -33,14 +33,19 @@ def format_raw_string(string_data: str) -> list[dict]:
     for move in moves:
         result = {}
         for i, key in zip(range(1, 24, 2), keys):
-            result[key] = move[i]
+            if key == "move":
+                result[key] = move[i]
+            elif key == "visits":
+                result[key] = int(move[i])
+            else:
+                result[key] = float(move[i])
 
         if move[24] == "isSymmetryOf":
             result["isSymmetryOf"] = move[25]
-            result["order"] = move[27]
+            result["order"] = int(move[27])
             result["pv"] = move[29:]
         else:
-            result["order"] = move[25]
+            result["order"] = int(move[25])
             result["pv"] = move[27:]
 
         data.append(result)

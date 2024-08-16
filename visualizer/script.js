@@ -1,55 +1,65 @@
-const canvas = document.getElementById("goban");
-const ctx = canvas.getContext("2d");
-const socket = new WebSocket("ws://localhost:8765");
-// images
-const BACKGROUNDIMAGE = document.getElementById("goban-image");
-const WHITESTONEIMAGE = document.getElementById("white-stone");
-const BLACKSTONEIMAGE = document.getElementById("black-stone");
-const BOARDSIZE = 19;
-const ANALYSISCOLORS = {
-  1: "#8ac926",
-  2: "#ffca3a",
-  4: "#ff595e",
-  6: "#f3722c",
-  10: "#f94144",
-};
+const canvas = document.getElementById("board");
 
+const backbutton = document.getElementById("back");
+const forwardbutton = document.getElementById("forward");
+
+const ctx = canvas.getContext("2d");
+
+const backgroundImage = document.getElementById("goban-image");
+const whiteStoneImage = document.getElementById("white-stone");
+const blackStoneImage = document.getElementById("black-stone");
+
+const BOARDSIZE = 19;
 const STARPOINTS = [4, 10, 16];
-const STARPOINTSCALEFACTOR = 15;
-const SCALEFACTORS = { W: 1.16, B: 1.19 }; // Correction factor for stone images
+const STARPOINTSCALEFACTOR = 0.1;
+const SCALEFACTORS = { W: 1.16, B: 1.19 };
 
 const mouse = { x: null, y: null };
-const placedStones = [];
-let analysedPositions = [];
 
 let canvasSize = Math.min(window.innerWidth, window.innerHeight);
 canvas.width = canvasSize;
 canvas.height = canvasSize;
 
 let cellSize = canvasSize / (BOARDSIZE + 1);
-let starPointSize = cellSize / STARPOINTSCALEFACTOR;
-let stoneColor = "B";
-// Event listener
+let starPointSize = cellSize * STARPOINTSCALEFACTOR;
+let color = "B";
+const board = Array(BOARDSIZE)
+  .fill()
+  .map(() => Array(BOARDSIZE).fill(0));
+const lastMove = { x: null, y: null };
+let visited = [];
+
+const adjacentStones = new Array(BOARDSIZE)
+  .fill(0)
+  .map(() => new Array(BOARDSIZE).fill(0).map(() => []));
+
+for (let y = 0; y < BOARDSIZE; y++) {
+  for (let x = 0; x < BOARDSIZE; x++) {
+    const directions = [
+      { x: x, y: y - 1 }, // top
+      { x: x - 1, y: y }, // left
+      { x: x + 1, y: y }, // right
+      { x: x, y: y + 1 }, // bottom
+    ].filter(
+      (dir) =>
+        dir.x >= 0 &&
+        dir.x <= BOARDSIZE - 1 &&
+        dir.y >= 0 &&
+        dir.y <= BOARDSIZE - 1,
+    );
+    adjacentStones[y][x] = directions;
+  }
+}
 
 window.addEventListener("resize", function () {
   canvasSize = Math.min(window.innerWidth, window.innerHeight);
   canvas.width = canvasSize;
   canvas.height = canvasSize;
+
   cellSize = canvasSize / (BOARDSIZE + 1);
-  starPointSize = cellSize / STARPOINTSCALEFACTOR;
+  starPointSize = cellSize * STARPOINTSCALEFACTOR;
   mouse.x = null;
   mouse.y = null;
-});
-
-canvas.addEventListener("click", function (event) {
-  let [x, y] = getXY();
-  if (!(isMouseOnBoard(x, y) && isFreePosition(x, y))) {
-    return;
-  }
-
-  placedStones.push([stoneColor, x, y]);
-  stoneColor = stoneColor == "B" ? "W" : "B";
-  analysedPositions = [];
 });
 
 canvas.addEventListener("mousemove", (e) => {
@@ -57,160 +67,178 @@ canvas.addEventListener("mousemove", (e) => {
   mouse.y = e.y;
 });
 
-socket.addEventListener("message", (event) => {
-  analysis = event.data;
+canvas.addEventListener("click", function (e) {
+  let [x, y, exists] = getXY();
+
+  if (exists) {
+    //validate move
+
+    board[y][x] = color;
+    lastMove.x = x;
+    lastMove.y = y;
+
+    removeCaptures();
+    swapPlayers();
+  }
 });
 
-// Utils
+canvas.addEventListener("contextmenu", function (event) {
+  let [x, y, exists] = getXY();
+  // add some nice analysis tool
+
+  event.preventDefault();
+});
+
+// Helper functions
 
 function getXY() {
+  if (mouse.x === null || mouse.y === null) return [null, null, false];
+
   x = Math.round(mouse.x / cellSize);
   y = Math.round(mouse.y / cellSize);
-  return [x, y];
+
+  const distance =
+    Math.pow(mouse.x - cellSize * x, 2) + Math.pow(mouse.y - cellSize * y, 2);
+  const maxDistance = Math.pow(cellSize / 2, 2);
+
+  if (distance > maxDistance) return [null, null, false];
+  if (x == 0 || x == BOARDSIZE + 1 || y == 0 || y == BOARDSIZE + 1)
+    return [null, null, false];
+  if (!board[y - 1][x - 1] == 0) return [null, null, false];
+
+  return [x - 1, y - 1, true];
 }
 
-function isMouseOnBoard(x, y) {
-  return x >= 1 && x <= 19 && y >= 1 && y <= 19;
-}
-
-function isFreePosition(newX, newY) {
-  return !placedStones.some(([color, x, y]) => x == newX && y == newY);
-}
-
-function coordinateToXY(coordinate) {
-  return [
-    "ABCDEFGHJKLMNOPQRST".indexOf(coordinate[0]) + 1,
-    20 - parseInt(coordinate.slice(1)),
-  ];
-}
-
-function xyToCoordinate(x, y) {
-  return `${"ABCDEFGHJKLMNOPQRST"[x - 1]}${20 - y}`;
-}
-
-function getNextLargestColor(num) {
-  smallest = Math.min(...Object.keys(ANALYSISCOLORS).filter((k) => -k < num));
-  if (smallest == Infinity) {
-    return 10;
+function removeCaptures() {
+  for (let y = 0; y < BOARDSIZE; y++) {
+    for (let x = 0; x < BOARDSIZE; x++) {
+      visited = [];
+      hasLibs = hasLiberties(x, y);
+      if (!hasLibs) {
+        for (const move of visited) {
+          board[move[1]][move[0]] = 0;
+        }
+      }
+    }
   }
-  return smallest;
 }
 
-// api request
-function analyse() {
-  fetch("http://localhost:8000/analyse", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(placedStones),
-  })
-    .then((response) => response.json())
-    .then((data) => analysedPositions.push(data))
-    .catch((error) => console.error("Error:", error));
+function hasLiberties(x, y) {
+  neighbors = adjacentStones[y][x];
+
+  for (const n of neighbors) {
+    if (board[n.y][n.x] === 0) {
+      return true;
+    }
+  }
+
+  visited.push([x, y]);
+  console.log(visited);
+  for (const n of neighbors) {
+    if (
+      board[n.y][n.x] != color &&
+      !visited.some(([oldX, oldY]) => oldX === n.x && oldY === n.y)
+    ) {
+      console.log("checking " + n.x, n.y);
+      hasLibs = hasLiberties(n.x, n.y);
+      console.log(hasLibs);
+      if (hasLibs) {
+        return true;
+      }
+    }
+  }
+
+  return false;
 }
 
-// canvas drawing
+function swapPlayers() {
+  color = color == "B" ? "W" : "B";
+}
+
+// Drawing functions
 
 function drawBoard() {
+  ctx.drawImage(backgroundImage, 0, 0, canvasSize, canvasSize);
   // Draw verticle lines
-  for (let i = 1; i <= 19; i++) {
+  for (let i = 1; i <= BOARDSIZE; i++) {
     ctx.beginPath();
     ctx.moveTo(cellSize, i * cellSize);
     ctx.lineTo(canvasSize - cellSize, i * cellSize);
     ctx.stroke();
-  }
-  // Draw horizontal lines
-  for (let i = 1; i <= 19; i++) {
     ctx.beginPath();
     ctx.moveTo(i * cellSize, cellSize);
     ctx.lineTo(i * cellSize, canvasSize - cellSize);
     ctx.stroke();
   }
-
   // Draw Star points
   for (const x of STARPOINTS) {
     for (const y of STARPOINTS) {
+      ctx.fillStyle = "black";
       ctx.beginPath();
       ctx.arc(x * cellSize, y * cellSize, starPointSize, 0, 2 * Math.PI);
-      ctx.fillStyle = "black";
       ctx.fill();
     }
   }
 }
 
 function drawPlacedStones() {
-  for ([color, x, y] of placedStones) {
-    drawCircle(x, y, color);
+  for (let y = 0; y < BOARDSIZE; y++) {
+    for (let x = 0; x < BOARDSIZE; x++) {
+      const color = board[y][x];
+      if (color != 0) {
+        drawCircle(x, y, color);
+      }
+    }
   }
-}
-
-function drawAnalysis() {
-  moves;
-  for (const move of moves) {
-    console.log(moves);
-    let [x, y] = coordinateToXY(move["move"]);
-    //let scoreLead = move["scoreLead"];
-    // if (placedStones.length == 0) {
-    //   scoreDifference = scoreLead;
-    // } else {
-    //   scoreDifference = move["scoreLead"] - initialScoreLead;
-    //   if (stoneColor == "W") {
-    //     scoreDifference *= -1;
-    //   }
-    // }
-    // if (scoreDifference < -4) {
-    //   continue;
-    // }
-
-    ctx.globalAlpha = 1;
-    // ctx.fillStyle = ANALYSISCOLORS[getNextLargestColor(scoreDifference)];
-    ctx.fillStyle = "green";
-    ctx.beginPath();
-    ctx.arc(x * cellSize, y * cellSize, cellSize / 2, 0, 2 * Math.PI);
-    ctx.fill();
-
-    // Write the move number inside the circle
-    // ctx.font = "12px Arial";
-    // ctx.fillStyle = "white";
-    // ctx.textAlign = "center";
-    // ctx.textBaseline = "middle";
-    // ctx.fillText(
-    //   Math.round(scoreDifference * 10) / 10,
-    //   x * cellSize,
-    //   y * cellSize,
-    // );
-  }
-  // ctx.globalAlpha = 1.0;
 }
 
 function drawCircle(x, y, color, opacity = 1.0) {
-  stoneImage = color == "B" ? BLACKSTONEIMAGE : WHITESTONEIMAGE;
+  stoneImage = color == "B" ? blackStoneImage : whiteStoneImage;
   scaledCellSize = cellSize * SCALEFACTORS[color];
   ctx.globalAlpha = opacity;
   ctx.drawImage(
     stoneImage,
-    x * cellSize - scaledCellSize / 2,
-    y * cellSize - scaledCellSize / 2,
+    (x + 1) * cellSize - scaledCellSize / 2,
+    (y + 1) * cellSize - scaledCellSize / 2,
     scaledCellSize,
     scaledCellSize,
   );
   ctx.globalAlpha = 1.0;
+  if (lastMove.x == x && lastMove.y == y) {
+    ctx.fillStyle = "red";
+    ctx.beginPath();
+    ctx.arc(
+      (x + 1) * cellSize,
+      (y + 1) * cellSize,
+      cellSize / 7,
+      0,
+      2 * Math.PI,
+    );
+    ctx.fill();
+  }
 }
 
 function animate() {
   ctx.clearRect(0, 0, canvasSize, canvasSize);
-  ctx.drawImage(BACKGROUNDIMAGE, 0, 0, canvasSize, canvasSize);
-
   drawBoard();
-  drawAnalysis();
-  let [x, y] = getXY();
+  drawPlacedStones();
 
-  if (!(x === null || y === null)) {
-    if (isMouseOnBoard(x, y) && isFreePosition(x, y)) {
-      drawCircle(x, y, stoneColor);
-    }
-    drawPlacedStones();
+  let [x, y, exists] = getXY();
+  if (exists) {
+    drawCircle(x, y, color, (opacity = 0.5));
+  }
+
+  // ----------------------
+  for (s of visited) {
+    ctx.fillStyle = "purple";
+    ctx.beginPath();
+    ctx.arc(
+      (s.x + 1) * cellSize,
+      (s.y + 1) * cellSize,
+      cellSize / 7,
+      0,
+      2 * Math.PI,
+    );
   }
 
   requestAnimationFrame(animate);

@@ -44,6 +44,9 @@ class KataGo:
         self.stderrthread = Thread(target=printforever)
         self.stderrthread.start()
 
+    def close(self):
+        self._katago.stdin.close()
+
     def __del__(self):
         self._katago.stdin.close()
 
@@ -70,22 +73,16 @@ class KataGo:
 
         self.query_counter += 1
 
-        return self._to_katago(data)
-
-    def _to_katago(self, query: dict):
-        self._katago.stdin.write((json.dumps(query) + "\n").encode())
+        self._katago.stdin.write((json.dumps(data) + "\n").encode())
         self._katago.stdin.flush()
 
-        line = ""
-        while line == "":
+        while True:
             if self._katago.poll():
                 time.sleep(1)
                 raise Exception("Unexpected katago exit")
             line = self._katago.stdout.readline()
             line = line.decode().strip()
-
-        response = json.loads(line)
-        return response
+            return json.loads(line)
 
 
 def coordinate_to_xy(coordinate: str) -> tuple[int, int]:
@@ -104,6 +101,10 @@ if __name__ == "__main__":
     )
 
     moves = []
+
     results = katago.analyse(moves)
 
-    json.dump(results, open("out.json", "w"), indent=4)
+    katago.close()
+    print("done")
+
+    json.dump(results, open("katago/testfiles/output_analysis.json", "w"), indent=4)
