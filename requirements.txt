@@ -1,9 +1,15 @@
-requests
-websockets
 icecream
 
-fastapi
-uvicorn
-python-multipart
+ipykernel
 
-sgfmill
+torch
+torchvision
+torchaudio
+
+opencv-python
+
+numpy
+polars
+
+matplotlib
+seaborn
