@@ -6,6 +6,7 @@ torch
 torchvision
 torchaudio
 
+rawpy
 opencv-python
 
 numpy
