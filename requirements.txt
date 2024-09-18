@@ -6,6 +6,8 @@ torch
 torchvision
 torchaudio
 
+ultralytics
+
 rawpy
 opencv-python
 
