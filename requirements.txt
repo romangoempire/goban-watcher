@@ -1,9 +1,23 @@
-requests
-websockets
+python-dotenv
 icecream
+surrealdb
+
+ipykernel
+
+opencv-python
+
+numpy
+polars
+
+torch
+torchvision
+torchaudio
+
+matplotlib
+seaborn
 
 fastapi
 uvicorn
-python-multipart
 
-sgfmill
+streamlit
+watchdog
