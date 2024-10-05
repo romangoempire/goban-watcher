@@ -1,4 +1,6 @@
+
 python-dotenv
+
 icecream
 surrealdb
 
@@ -15,9 +17,3 @@ torchaudio
 
 matplotlib
 seaborn
-
-fastapi
-uvicorn
-
-streamlit
-watchdog
