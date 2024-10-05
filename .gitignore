@@ -140,7 +140,5 @@ cython_debug/
 pyrightconfig.json
 
 # Katago
-katago/models
-
-
+katago
 images

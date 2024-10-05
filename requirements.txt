@@ -1,18 +1,19 @@
+
+python-dotenv
+
 icecream
+surrealdb
 
 ipykernel
 
-torch
-torchvision
-torchaudio
-
-ultralytics
-
-rawpy
 opencv-python
 
 numpy
 polars
+
+torch
+torchvision
+torchaudio
 
 matplotlib
 seaborn
