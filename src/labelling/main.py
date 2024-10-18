@@ -1,21 +1,9 @@
-import asyncio
-import os
 import enum
 import pathlib as pl
 
 import cv2
-from dotenv import load_dotenv
-from icecream import ic
 import numpy as np
-from surrealdb import Surreal
-
-ROOT_DIR = "goban-watcher"
-IMAGE_PATH = (
-    f"{pl.Path.cwd()}/images"
-    if pl.Path.cwd().name == ROOT_DIR
-    else f"{pl.Path.cwd().parent}/images"
-)
-RAW_IMAGES_PATH = f"{IMAGE_PATH}/raw"
+from icecream import ic
 
 
 class Color(enum.Enum):
@@ -23,26 +11,6 @@ class Color(enum.Enum):
     GREEN = (0, 255, 0)
 
 
-async def files_to_label() -> list:
-    load_dotenv()
-
-    db = Surreal(str(os.getenv("SURREAL_URL")))
-    await db.connect()
-    await db.signin(
-        {"user": str(os.getenv("SURREAL_USER")), "pass": str(os.getenv("SURREAL_PASS"))}
-    )
-    await db.use(str(os.getenv("SURREAL_NS")), str(os.getenv("SURREAL_DB")))
-
-    files = [file for file in pl.Path(RAW_IMAGES_PATH).glob("*") if file.is_file()]
-
-    response = await db.query("SELECT path FROM label")
-    labelled_files = response[0]["result"]
-    await db.close()
-
-    return [file for file in files if file.as_posix() not in labelled_files]
-
-
-files = asyncio.run(files_to_label())
 selected_point = None
 
 
@@ -80,6 +48,7 @@ for index, file in enumerate(files):
 
     cv2.namedWindow(file.name)
     cv2.setMouseCallback(file.name, get_mouse_position)
+
     while True:
         key = cv2.waitKey(1) & 0xFF
         if key == ord("1"):
