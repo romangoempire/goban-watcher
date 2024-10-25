@@ -13,7 +13,6 @@ polars
 
 torch
 torchvision
-torchaudio
 
 matplotlib
 seaborn

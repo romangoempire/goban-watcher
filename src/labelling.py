@@ -2,6 +2,7 @@ import json
 import os
 from enum import Enum, StrEnum
 
+
 import cv2
 import numpy as np
 from icecream import ic
