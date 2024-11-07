@@ -4,7 +4,7 @@ import logging
 class ColoredFormatter(logging.Formatter):
     COLORS = {
         "DEBUG": "\033[0;37m",  # White
-        "INFO": "\033[0;32m",  # Green
+        "INFO": "\033[0;36m",  # Cyan
         "WARNING": "\033[0;33m",  # Yellow
         "ERROR": "\033[0;31m",  # Red
         "CRITICAL": "\033[0;41m",  # Red background
@@ -21,7 +21,7 @@ class ColoredFormatter(logging.Formatter):
 format = "%(asctime)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s"
 handler = logging.StreamHandler()
 handler.setFormatter(ColoredFormatter(format))
-logging.basicConfig(level=logging.DEBUG, handlers=[handler])
+logging.basicConfig(level=logging.INFO, handlers=[handler])
 
 # Create a logger
 logger = logging.getLogger(__name__)
