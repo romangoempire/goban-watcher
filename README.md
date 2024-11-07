@@ -14,4 +14,4 @@
 
 ## Training
 - `0_classification.ipynb`: Notebook to classify each intersection
-- `src/1_predcition_corners.ipynb`: Notebook to predict the corners of the board. (Should be used to normalize the board to a topdown view)
+- `1_prediction_corners.ipynb`: Notebook to predict the corners of the board. (Should be used to normalize the board to a topdown view)
