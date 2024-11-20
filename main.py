@@ -1,5 +1,6 @@
 import time
-from enum import StrEnum
+from enum import IntEnum, auto
+
 import cv2
 import numpy as np
 from cv2.typing import MatLike
@@ -11,18 +12,59 @@ PERCENTAGE_THRESHOLD = 1.0
 GRID_SIZE = 19
 
 
-class Cell(StrEnum):
-    BLACK = "x"
-    WHITE = "o"
-    EMPTY = "-"
-    OCCLUSION = "."
+class Cell(IntEnum):
+    EMPTY = 0
+    BLACK = auto()
+    WHITE = auto()
 
 
-def print_board(board: list[list[Cell]]) -> None:
-    for y in range(GRID_SIZE):
-        for x in range(GRID_SIZE):
-            print(board[y][x].value, end=" ")
-        print()
+class Game:
+    def __init__(self):
+        self.move: int = 0
+        self.is_ko: bool = False
+        self.captured_black: int = 0
+        self.captured_white: int = 0
+        self.board = [[Cell.EMPTY for _ in range(GRID_SIZE)] for _ in range(GRID_SIZE)]
+
+    def print_board(self) -> None:
+        symbols = {
+            Cell.EMPTY.value: "-",
+            Cell.BLACK.value: "X",
+            Cell.WHITE.value: "0",
+        }
+        for y in range(GRID_SIZE):
+            for x in range(GRID_SIZE):
+                cell = self.board[y][x].value
+                print(symbols[cell], end=" ")
+            print()
+
+    def add_move(self, x, y) -> None:
+        current_color, opponent_color = (
+            (Cell.BLACK, Cell.WHITE) if self.move % 2 == 0 else (Cell.WHITE, Cell.BLACK)
+        )
+
+        assert self.board[y][x] == Cell.EMPTY.value, f"x: {x} y: {y} is not empty"
+        neighbors = self.get_neighbors(x, y)
+        visited = set()
+
+        for neighbor in neighbors:
+            x, y = neighbor
+
+            if self.board[y][x] == opponent_color:
+                self.remove_stones(x, y)
+
+        assert not self.suicide(x, y), "Suicide"
+
+        self.board[y][x] = current_color
+        self.move += 1
+
+    def get_neighbors(self, x, y) -> list:
+        return [
+            (x - 1, y),
+            (x + 1, y),
+            (x, y - 1),
+            (x, y + 1),
+        ]
 
 
 def changed_percentage(last_frame, frame) -> tuple[float, MatLike]:
@@ -44,14 +86,6 @@ def main():
 
     last_frame = None
     last_percentage = 0
-
-    move = 0
-    black_turn = True
-    captures = {
-        Cell.BLACK: 0,
-        Cell.WHITE: 0,
-    }
-    board = [[Cell.EMPTY for _ in range(GRID_SIZE)] for _ in range(GRID_SIZE)]
 
     return
     while True:
@@ -104,4 +138,11 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    game = Game()
+    game.print_board()
+    game.add_move(3, 3)
+    print()
+    game.print_board()
+    game.add_move(2, 2)
+    print()
+    game.print_board()

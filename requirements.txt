@@ -1,5 +1,4 @@
 requests
-icecream
 ipykernel
 
 opencv-python
@@ -11,3 +10,8 @@ torchvision
 
 matplotlib
 seaborn
+
+icecream
+tqdm
+
+pygame

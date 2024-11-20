@@ -7,7 +7,6 @@ import cv2
 import numpy as np
 from icecream import ic
 
-from custom_logger import logger
 
 IMAGE_DIR = "images/raw"
 DATA_PATH = "images/images.json"
@@ -67,7 +66,6 @@ for image_name in image_names:
         continue
 
     data[image_name] = {"corners": [], "board": []}
-    logger.info(f"Adding {image_name} to json")
 
 
 save_data()
