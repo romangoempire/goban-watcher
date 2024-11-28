@@ -143,3 +143,5 @@ pyrightconfig.json
 katago
 images
 sgf
+gtp_logs
+analysis_logs

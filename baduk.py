@@ -1,7 +1,7 @@
 import pygame
 from icecream import ic
 
-from game import Cell, Game
+from tools.game import Cell, Game
 
 # CONSTANTS
 
@@ -34,7 +34,7 @@ def coordinates() -> list:
     return [START + x * CELL_SIZE, START + y * CELL_SIZE]
 
 
-def display_board() -> None:
+def display_stones() -> None:
     for y in range(GRID_SIZE):
         for x in range(GRID_SIZE):
             if game.is_empty((x, y)):
@@ -53,7 +53,7 @@ def display_grid() -> None:
     # Lines
     for x in range(GRID_SIZE):
         increment = START + x * CELL_SIZE
-        width = 2
+        width = 1
         pygame.draw.line(screen, BLACK, [START, increment], [END, increment], width)
         pygame.draw.line(screen, BLACK, [increment, START], [increment, END], width)
 
@@ -72,9 +72,11 @@ def display_grid() -> None:
 
 
 # MAIN
+
 pygame.init()
 screen = pygame.display.set_mode((SCREEN_SIZE, SCREEN_SIZE))
 clock = pygame.time.Clock()
+
 mouse = pygame.mouse
 running = True
 
@@ -89,7 +91,7 @@ while running:
 
     screen.fill(BROWN)
     display_grid()
-    display_board()
+    display_stones()
 
     if mouse.get_pressed()[0]:
         x, y = xy()
