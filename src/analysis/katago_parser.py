@@ -4,8 +4,8 @@ import subprocess
 
 from icecream import ic
 
-MODEL_NAME = "katago/b28c512nbt.bin.gz"
-CFG_NAME = "katago/analysis_example.cfg"
+MODEL_NAME = "../../katago/b28c512nbt.bin.gz"
+CFG_NAME = "../../katago/analysis_example.cfg"
 
 process = subprocess.Popen(
     ["katago", "analysis", "-config", f"{CFG_NAME}", "-model", f"{MODEL_NAME}"],

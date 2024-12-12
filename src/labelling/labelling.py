@@ -9,10 +9,10 @@ from icecream import ic
 
 
 IMAGE_DIR = "images/raw"
-DATA_PATH = "images/images.json"
+DATA_PATH = "images/data.json"
 
 GRID_SIZE = 19
-TRANSFORMED_SCREEN_SIZE = 2000
+TRANSFORMED_SCREEN_SIZE = 1000
 CELL_SIZE = TRANSFORMED_SCREEN_SIZE // GRID_SIZE
 CORNERS_INDEXES = [0, 1, 2, 3]
 
@@ -30,7 +30,6 @@ class Cell(StrEnum):
     BLACK = "b"
     WHITE = "w"
     EMPTY = " "
-    OCCLUSION = "o"
 
 
 def save_data():
@@ -53,8 +52,6 @@ if not os.path.exists(DATA_PATH):
 os.makedirs("images/black", exist_ok=True)
 os.makedirs("images/white", exist_ok=True)
 os.makedirs("images/empty", exist_ok=True)
-os.makedirs("images/occlusion", exist_ok=True)
-
 
 with open(DATA_PATH) as f:
     data = json.load(f)
@@ -107,6 +104,7 @@ cv2.setMouseCallback("Default", default_mouse_callback)
 cv2.setMouseCallback("Transformed", transformed_mouse_callback)
 
 ic(len(missing_labelling_file_names))
+
 for image_name in missing_labelling_file_names:
     board = [[Cell.EMPTY for _ in range(GRID_SIZE)] for _ in range(GRID_SIZE)]
     selected_color = Cell.EMPTY
@@ -114,10 +112,9 @@ for image_name in missing_labelling_file_names:
 
     img = cv2.imread(f"{IMAGE_DIR}/{image_name}")
 
-    down_scale_factor = 4
     x, y = (
-        int(img.shape[1] // down_scale_factor),
-        int(img.shape[0] // down_scale_factor),
+        int(img.shape[1]),
+        int(img.shape[0]),
     )
 
     left = x // 4
@@ -137,43 +134,10 @@ for image_name in missing_labelling_file_names:
     while True:
         display_img = resized_img.copy()
         key = cv2.waitKey(1) & 0xFF
-        if key == ord("q"):
-            data[image_name]["corners"] = [
-                [corner[0] / display_img.shape[1], corner[1] / display_img.shape[0]]
-                for corner in corners
-            ]
-            data[image_name]["board"] = board
-            save_data()
-
-            transformed_cell_size = 2000 // 19
-            half_transformed_cell_size = transformed_cell_size // 8
-            for y in range(GRID_SIZE):
-                for x in range(GRID_SIZE):
-                    cell = board[y][x]
-
-                    if cell == Cell.BLACK.value:
-                        folder = "black"
-                    elif cell == Cell.WHITE.value:
-                        folder = "white"
-                    elif cell == Cell.OCCLUSION.value:
-                        folder = "occlusion"
-                    else:
-                        folder = "empty"
-
-                    cv2.imwrite(
-                        f"images/{folder}/{image_name}_{x}_{y}.png",
-                        transformed_img[
-                            y * transformed_cell_size : (y + 1) * transformed_cell_size,
-                            x * transformed_cell_size : (x + 1) * transformed_cell_size,
-                        ],
-                    )
-
-            break
 
         color_mapping = {
             ord("b"): Cell.BLACK,
             ord("w"): Cell.WHITE,
-            ord("o"): Cell.OCCLUSION,
         }
 
         if key in color_mapping:
@@ -197,12 +161,7 @@ for image_name in missing_labelling_file_names:
 
         # transform image
         matrix = cv2.getPerspectiveTransform(
-            np.float32(
-                [
-                    [corner[0] * down_scale_factor, corner[1] * down_scale_factor]
-                    for corner in corners
-                ]
-            ),
+            np.float32([[corner[0], corner[1]] for corner in corners]),
             np.float32(
                 [
                     [0, 0],
@@ -246,8 +205,6 @@ for image_name in missing_labelling_file_names:
                     color = Color.BLACK.value
                 elif cell == Cell.WHITE:
                     color = Color.WHITE.value
-                elif cell == Cell.OCCLUSION:
-                    color = Color.RED.value
                 else:
                     color = None
 
@@ -273,7 +230,47 @@ for image_name in missing_labelling_file_names:
                         2,
                     )
         cv2.imshow("Default", display_img)
-
         cv2.imshow("Transformed", display_transformed_img)
+
+        if key == ord("q"):
+            data[image_name]["corners"] = [
+                [corner[0] / display_img.shape[1], corner[1] / display_img.shape[0]]
+                for corner in corners
+            ]
+            data[image_name]["board"] = board
+            save_data()
+
+            transformed_cell_size = TRANSFORMED_SCREEN_SIZE // 19
+            half_transformed_cell_size = transformed_cell_size // 2
+
+            for y in range(GRID_SIZE):
+                for x in range(GRID_SIZE):
+                    cell = board[y][x]
+
+                    if cell == Cell.BLACK.value:
+                        folder = "black"
+                    elif cell == Cell.WHITE.value:
+                        folder = "white"
+                    else:
+                        folder = "empty"
+
+                    half_cell_size = transformed_cell_size // 2
+                    y_start = max(0, y * transformed_cell_size - half_cell_size)
+                    y_end = min(
+                        transformed_img.shape[0],
+                        (y + 1) * transformed_cell_size + half_cell_size,
+                    )
+                    x_start = max(0, x * transformed_cell_size - half_cell_size)
+                    x_end = min(
+                        transformed_img.shape[1],
+                        (x + 1) * transformed_cell_size + half_cell_size,
+                    )
+
+                    cv2.imwrite(
+                        f"images/{folder}/{image_name}_{x}_{y}.png",
+                        transformed_img[y_start:y_end, x_start:x_end],
+                    )
+
+            break
 
 cv2.destroyAllWindows()

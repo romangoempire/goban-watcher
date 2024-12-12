@@ -1,7 +1,20 @@
-import pygame
+from copy import deepcopy
+from sgfmill import sgf
+from game import Game, Cell
 from icecream import ic
+import pygame
 
-from tools.game import Cell, Game
+game = Game()
+
+with open("sgf_20/7.sgf", "rb") as f:
+    sgf_game = sgf.Sgf_game.from_bytes(f.read())
+
+for node in sgf_game.get_main_sequence():
+    player, move = node.get_move()
+
+    if move:
+        game.add_move(*move)
+
 
 # CONSTANTS
 
@@ -21,31 +34,21 @@ BROWN = [245, 143, 41]
 # METHODS
 
 
-def xy() -> list:
-    x, y = mouse.get_pos()
-    return [x // CELL_SIZE, y // CELL_SIZE]
-
-
-def coordinates() -> list:
-    pos = xy()
-    if not pos:
-        return []
-    x, y = pos
-    return [START + x * CELL_SIZE, START + y * CELL_SIZE]
-
-
 def display_stones() -> None:
+    board = list(zip(*game.board))[::-1]
+
     for y in range(GRID_SIZE):
         for x in range(GRID_SIZE):
-            if game.is_empty((x, y)):
+            if game.is_empty((x, y), board):
                 continue
 
-            color = BLACK if game.board[y][x] == Cell.BLACK else WHITE
+            color = BLACK if board[y][x] == Cell.BLACK else WHITE
+
             pygame.draw.circle(
                 screen,
                 color,
                 [START + x * CELL_SIZE, START + y * CELL_SIZE],
-                CELL_SIZE // 2,
+                CELL_SIZE // 2 - 1,
             )
 
 
@@ -80,8 +83,6 @@ clock = pygame.time.Clock()
 mouse = pygame.mouse
 running = True
 
-game = Game()
-
 while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -92,11 +93,6 @@ while running:
     screen.fill(BROWN)
     display_grid()
     display_stones()
-
-    if mouse.get_pressed()[0]:
-        x, y = xy()
-        if game.is_empty((x, y)):
-            game.add_move(x, y)
 
     pygame.display.flip()
     clock.tick(60)

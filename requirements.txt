@@ -16,3 +16,4 @@ icecream
 tqdm
 
 pygame
+sgfmill

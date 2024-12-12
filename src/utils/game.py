@@ -1,9 +1,9 @@
 from enum import IntEnum, auto
-from cv2.aruco import Board
+
 from icecream import ic
 from copy import deepcopy
 
-GRID_SIZE = 19
+from src import GRID_SIZE
 
 
 class Cell(IntEnum):
@@ -70,8 +70,8 @@ class Game:
         assert self.get_liberties(x, y, opponent_color, board_after_capture) > 0
 
         if (
-            len(self.board_history) > 2
-            and board_after_capture == self.board_history[-2]
+                len(self.board_history) > 2
+                and board_after_capture == self.board_history[-2]
         ):
             return
 
@@ -113,7 +113,3 @@ class Game:
             if self.get_color(neighbor, board) != opponent_color:
                 count += 1
         return count
-
-
-if __name__ == "__main__":
-    pass

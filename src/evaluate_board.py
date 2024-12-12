@@ -89,21 +89,26 @@ def add_grid(frame):
 
 def extract_cells(frame):
     transformed_cell_size = TRANSFORMED_SCREEN_SIZE // GRID_SIZE
-    return np.array(
-        [
-            frame[
-                y * transformed_cell_size : (y + 1) * transformed_cell_size,
-                x * transformed_cell_size : (x + 1) * transformed_cell_size,
-            ]
-            for y in range(GRID_SIZE)
-            for x in range(GRID_SIZE)
+    half_cell_size = transformed_cell_size // 2
+
+    return [
+        frame[
+            max(0, y * transformed_cell_size - half_cell_size) : min(
+                frame.shape[0],
+                (y + 1) * transformed_cell_size + half_cell_size,
+            ),
+            max(0, x * transformed_cell_size - half_cell_size) : min(
+                frame.shape[1],
+                (x + 1) * transformed_cell_size + half_cell_size,
+            ),
         ]
-    )
+        for y in range(GRID_SIZE)
+        for x in range(GRID_SIZE)
+    ]
 
 
 def evaluate_board(frame) -> list[int]:
-    transformed_frame = transform_frame(frame)
-    cells = extract_cells(transformed_frame)
+    cells = extract_cells(frame)
     tensor_images = torch.from_numpy(np.array([TRANSFORM(image) for image in cells]))
     outputs = net(tensor_images)
     _, predictions = torch.max(outputs, 1)
@@ -171,7 +176,7 @@ def display_results():
         transformed_frame = transform_frame(frame)
         transformed_frame = add_grid(transformed_frame)
         cv2.imshow("Transformed", transformed_frame)
-        results = evaluate_board(frame)
+        results = evaluate_board(transformed_frame)
         screen.fill(BROWN)
         screen = display_grid(screen)
         screen = add_stones(screen, results)
