@@ -1,3 +1,9 @@
+from pathlib import Path
+
+ROOT_DIR = Path(__file__).parent.parent
+IMG_PATH = ROOT_DIR.joinpath("img")
+SGF_PATH = ROOT_DIR.joinpath("sgf")
+KATAGO_PATH = ROOT_DIR.joinpath("katago")
 
 SCREEN_SIZE = 800
 GRID_SIZE = 19

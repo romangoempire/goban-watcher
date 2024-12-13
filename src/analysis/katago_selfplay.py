@@ -1,17 +1,10 @@
-import os
 import subprocess
 from datetime import datetime
+from pathlib import PosixPath
 
-from icecream import ic
 from tqdm import tqdm
 
-# CONSTANTS
-CONFIG_PATH = "../../katago/configs/default_gtp.cfg"
-MODEL_PATH = "../../katago/models/b28c512nbt.bin.gz"
-
-SGF_PATH = "../../sgf/katago_selfplay"
-
-# METHODS
+from src import KATAGO_PATH
 
 
 def send(process, message: str) -> str:
@@ -26,9 +19,9 @@ def send(process, message: str) -> str:
             return answer.strip("= ")
 
 
-def generate_game():
+def generate_game(config_path: PosixPath, model_path: PosixPath, sgf_dir: PosixPath) -> None:
     process = subprocess.Popen(
-        ["katago", "gtp", "-config", f"{CONFIG_PATH}", "-model", f"{MODEL_PATH}"],
+        ["katago", "gtp", "-config", f"{config_path}", "-model", f"{model_path}"],
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -49,17 +42,22 @@ def generate_game():
     sgf = send(process, "printsgf")
     current_time = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
 
-    new_sgf_path = os.path.join(SGF_PATH, f"kata_selfplay_{current_time}.sgf")
-    with open(new_sgf_path, "w") as f:
+    file_name = sgf_dir.joinpath(f"kata_selfplay_{current_time}.sgf")
+    with open(file_name, "w") as f:
         f.write(sgf)
 
     process.terminate()
 
 
 def main():
-    os.makedirs(SGF_PATH, exist_ok=True)
+    config_path = KATAGO_PATH.joinpath("configs/default_gtp.cfg")
+    model_path = KATAGO_PATH.joinpath("models/b28c512nbt.bin.gz")
+
+    sgf_dir = KATAGO_PATH.joinpath("katago_selfplay")
+    sgf_dir.mkdir(parents=True, exist_ok=True)
+
     for i in tqdm(range(10)):
-        generate_game()
+        generate_game(config_path,model_path,sgf_dir)
 
 
 if __name__ == "__main__":

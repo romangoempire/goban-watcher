@@ -2,11 +2,9 @@ import json
 import os
 from enum import Enum, StrEnum
 
-
 import cv2
 import numpy as np
 from icecream import ic
-
 
 IMAGE_DIR = "images/raw"
 DATA_PATH = "images/data.json"
@@ -56,14 +54,12 @@ os.makedirs("images/empty", exist_ok=True)
 with open(DATA_PATH) as f:
     data = json.load(f)
 
-
 # Add new images to data
 for image_name in image_names:
     if data.get(image_name):
         continue
 
     data[image_name] = {"corners": [], "board": []}
-
 
 save_data()
 

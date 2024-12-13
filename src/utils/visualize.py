@@ -1,3 +1,5 @@
+from pathlib import PosixPath
+
 import pygame
 from pygame import SurfaceType
 
@@ -45,14 +47,13 @@ def add_grid(screen: SurfaceType) -> SurfaceType:
     return screen
 
 
-def save_png(game, filename: str) -> None:
+def save_png(game, filename: PosixPath) -> None:
+    assert filename.suffix == ".png", "filename must end with .png"
     surface = pygame.Surface((800, 800))
 
     surface.fill(Color.BROWN.value)
-
     surface = add_grid(surface)
     surface = add_stones(surface, game)
 
-    filename += "" if filename.endswith(".png") else  ".png"
     pygame.image.save(surface, filename)
 

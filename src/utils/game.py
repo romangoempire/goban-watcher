@@ -1,7 +1,7 @@
+from copy import deepcopy
 from enum import IntEnum, auto
 
-from icecream import ic
-from copy import deepcopy
+from sgfmill import sgf
 
 from src import GRID_SIZE
 
@@ -29,6 +29,14 @@ class Game:
         self.board_history: list = []
         self.board = [[Cell.EMPTY for _ in range(GRID_SIZE)] for _ in range(GRID_SIZE)]
 
+    def add_sgf(self, file: bytes) -> None:
+        main_sequence = sgf.Sgf_game.from_bytes(file).get_main_sequence()
+
+        for node in main_sequence:
+            _, move = node.get_move()
+            if move:
+                self.add_move(*move)
+
     def add_move(self, x, y) -> None:
         if self.move % 2 == 0:
             current_color, opponent_color = (Cell.BLACK, Cell.WHITE)
@@ -47,7 +55,7 @@ class Game:
                 continue
 
             queue = set(self.get_neighbors(cell_x, cell_y))
-            visited = set([(cell_x, cell_y)])
+            visited = {(cell_x, cell_y)}
 
             while queue:
                 cell = queue.pop()
@@ -79,7 +87,8 @@ class Game:
         self.move += 1
         self.board_history.append(board_after_capture)
 
-    def get_neighbors(self, x, y) -> list:
+    @staticmethod
+    def get_neighbors(x, y) -> list:
         neighbors = []
 
         if x > 0:
