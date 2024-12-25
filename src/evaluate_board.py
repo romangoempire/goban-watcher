@@ -1,26 +1,22 @@
 import time
 from copy import deepcopy
-from enum import Enum
 
 import cv2
 import numpy as np
 import pygame
 import torch
 import torchvision.transforms as transforms
-from icecream import ic
 
+from src import CELL_SIZE, GRID_SIZE, START, END, SCREEN_SIZE, HOSHIS
 from stone_classification import StoneClassifactionModel
 
 PATH = "weights/stone_classification_weights.pth"
 CORNERS_INDEXES = [0, 1, 2, 3]
-GRID_SIZE = 19
-TRANSFORMED_SCREEN_SIZE = 1000
-CV2_CELL_SIZE = TRANSFORMED_SCREEN_SIZE // GRID_SIZE
 
 TRANSFORM = transforms.Compose(
     [
         transforms.ToPILImage(),  # Convert NumPy array to PIL Image
-        transforms.Resize((105, 105)),  # Resize to 105x105
+        transforms.Resize((CELL_SIZE, CELL_SIZE)),  # Resize to 105x105
         transforms.ToTensor(),  # Convert to tensor
         transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),  # Normalize
     ]
@@ -31,14 +27,6 @@ GREEN = [0, 255, 0]
 BLACK = [0, 0, 0]
 WHITE = [255, 255, 255]
 BROWN = [245, 143, 41]
-
-# pygame
-SCREEN_SIZE = 800
-CELL_SIZE = SCREEN_SIZE // GRID_SIZE
-START = CELL_SIZE // 2
-END = SCREEN_SIZE - START
-
-HOSHIS = [3, 9, 15]
 
 
 def default_mouse_callback(event, x, y, flags, param):
@@ -54,9 +42,9 @@ def transform_frame(frame):
         np.float32(
             [
                 [0, 0],
-                [TRANSFORMED_SCREEN_SIZE, 0],
-                [TRANSFORMED_SCREEN_SIZE, TRANSFORMED_SCREEN_SIZE],
-                [0, TRANSFORMED_SCREEN_SIZE],
+                [SCREEN_SIZE, 0],
+                [SCREEN_SIZE, SCREEN_SIZE],
+                [0, SCREEN_SIZE],
             ]
         ),
     )
@@ -64,8 +52,8 @@ def transform_frame(frame):
         frame,
         matrix,
         (
-            TRANSFORMED_SCREEN_SIZE,
-            TRANSFORMED_SCREEN_SIZE,
+            SCREEN_SIZE,
+            SCREEN_SIZE,
         ),
     )
 
@@ -74,33 +62,33 @@ def add_grid(frame):
     for i in range(GRID_SIZE):
         cv2.line(
             frame,
-            (0, i * CV2_CELL_SIZE),
-            (TRANSFORMED_SCREEN_SIZE, i * CV2_CELL_SIZE),
+            (0, i * SCREEN_SIZE),
+            (CELL_SIZE, i * CELL_SIZE),
             GREEN,
         )
         cv2.line(
             frame,
-            (i * CV2_CELL_SIZE, 0),
-            (i * CV2_CELL_SIZE, TRANSFORMED_SCREEN_SIZE),
+            (i * CELL_SIZE, 0),
+            (i * CELL_SIZE, SCREEN_SIZE),
             GREEN,
         )
     return frame
 
 
 def extract_cells(frame):
-    transformed_cell_size = TRANSFORMED_SCREEN_SIZE // GRID_SIZE
+    transformed_cell_size = SCREEN_SIZE // GRID_SIZE
     half_cell_size = transformed_cell_size // 2
 
     return [
         frame[
-            max(0, y * transformed_cell_size - half_cell_size) : min(
-                frame.shape[0],
-                (y + 1) * transformed_cell_size + half_cell_size,
-            ),
-            max(0, x * transformed_cell_size - half_cell_size) : min(
-                frame.shape[1],
-                (x + 1) * transformed_cell_size + half_cell_size,
-            ),
+        max(0, y * transformed_cell_size - half_cell_size): min(
+            frame.shape[0],
+            (y + 1) * transformed_cell_size + half_cell_size,
+        ),
+        max(0, x * transformed_cell_size - half_cell_size): min(
+            frame.shape[1],
+            (x + 1) * transformed_cell_size + half_cell_size,
+        ),
         ]
         for y in range(GRID_SIZE)
         for x in range(GRID_SIZE)
@@ -235,7 +223,6 @@ def add_stones(screen, results) -> pygame.Surface:
 net = StoneClassifactionModel()
 net.load_state_dict(torch.load(PATH, weights_only=True))
 
-
 cap = cv2.VideoCapture(3)
 
 if not cap.isOpened():
@@ -246,7 +233,6 @@ cv2.setMouseCallback("Default", default_mouse_callback)
 cv2.namedWindow("Transformed")
 
 default_mouse = [0, 0]
-
 
 x, y = (1920, 1080)
 left = x // 4

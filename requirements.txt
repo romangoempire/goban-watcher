@@ -5,6 +5,7 @@ ipykernel
 opencv-python
 numpy
 polars
+pandas
 
 torch
 torchvision

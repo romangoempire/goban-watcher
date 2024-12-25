@@ -15,14 +15,6 @@ CELL_SIZE = TRANSFORMED_SCREEN_SIZE // GRID_SIZE
 CORNERS_INDEXES = [0, 1, 2, 3]
 
 
-class Color(Enum):
-    RED = (0, 0, 255)
-    GREEN = (0, 255, 0)
-    BLUE = (255, 0, 0)
-    MAGENTA = (255, 0, 255)
-    WHITE = (255, 255, 255)
-    BLACK = (0, 0, 0)
-
 
 class Cell(StrEnum):
     BLACK = "b"

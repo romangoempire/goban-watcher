@@ -1,7 +1,8 @@
 from copy import deepcopy
 from enum import IntEnum, auto
-
+from pathlib import PosixPath
 from sgfmill import sgf
+from icecream import ic
 
 from src import GRID_SIZE
 
@@ -29,8 +30,9 @@ class Game:
         self.board_history: list = []
         self.board = [[Cell.EMPTY for _ in range(GRID_SIZE)] for _ in range(GRID_SIZE)]
 
-    def add_sgf(self, file: bytes) -> None:
-        main_sequence = sgf.Sgf_game.from_bytes(file).get_main_sequence()
+    def add_sgf(self, filename: PosixPath) -> None:
+        with open(filename, "rb") as f:
+            main_sequence = sgf.Sgf_game.from_bytes(f.read()).get_main_sequence()
 
         for node in main_sequence:
             _, move = node.get_move()
@@ -38,18 +40,17 @@ class Game:
                 self.add_move(*move)
 
     def add_move(self, x, y) -> None:
-        if self.move % 2 == 0:
-            current_color, opponent_color = (Cell.BLACK, Cell.WHITE)
-        else:
-            current_color, opponent_color = (Cell.WHITE, Cell.BLACK)
+        current_color, opponent_color = (Cell.BLACK, Cell.WHITE) if self.move % 2 == 0 else (Cell.WHITE, Cell.BLACK)
 
-        assert self.is_empty((x, y))
+        x, y = y, 18 - x
+        assert self.is_empty((x, y)), "Cell is occupied"
 
         board_after_capture = deepcopy(self.board)
         board_after_capture[y][x] = current_color
 
-        # iterate over each neighbor and check if it has liberties
         neighbors = self.get_neighbors(x, y)
+
+        # iterate over each neighbor and check if it has liberties
         for cell_x, cell_y in neighbors:
             if board_after_capture[cell_y][cell_x] != opponent_color:
                 continue
@@ -59,6 +60,7 @@ class Game:
 
             while queue:
                 cell = queue.pop()
+                # stones have at least one liberty and therefore are not captured
                 if self.is_empty(cell, board_after_capture):
                     visited = set()
                     break
@@ -66,8 +68,10 @@ class Game:
                 if cell in visited:
                     continue
 
+                # check if the cell is opponent
                 if self.get_color(cell, board_after_capture) == opponent_color:
                     visited.add(cell)
+                    # add all neighbors to queue
                     for neighbor in self.get_neighbors(*cell):
                         queue.add(neighbor)
 
@@ -75,13 +79,9 @@ class Game:
             for cell in visited:
                 board_after_capture[cell[1]][cell[0]] = Cell.EMPTY
 
-        assert self.get_liberties(x, y, opponent_color, board_after_capture) > 0
-
-        if (
-                len(self.board_history) > 2
-                and board_after_capture == self.board_history[-2]
-        ):
-            return
+        assert self.get_liberties(x, y, opponent_color, board_after_capture) > 0, "Move would lead to suicide"
+        if len(self.board_history) > 2:
+            assert board_after_capture != self.board_history[-2], "Move would lead to invalid repetition (ko)"
 
         self.board = board_after_capture
         self.move += 1
@@ -122,3 +122,5 @@ class Game:
             if self.get_color(neighbor, board) != opponent_color:
                 count += 1
         return count
+
+
