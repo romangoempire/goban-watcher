@@ -1,6 +1,3 @@
-from icecream import ic
-
-
 def get_amount_combinations(moves):
     move_amount = moves // 2
     if moves % 2 == 0:
@@ -27,4 +24,4 @@ def get_amount_combinations(moves):
 
 
 for i in range(1, 20):
-    print(i, get_amount_combinations(i))
+    print(f"Moves {i} \t {get_amount_combinations(i)}")

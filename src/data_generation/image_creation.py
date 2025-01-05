@@ -10,7 +10,6 @@ DATA_PATH = "../../images/data.json"
 
 with open(DATA_PATH, "r") as f:
     data = json.load(f)
-    ic(data)
 
 os.makedirs(IMAGE_RAW_PATH, exist_ok=True)
 
