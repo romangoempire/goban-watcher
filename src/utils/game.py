@@ -1,10 +1,11 @@
 from copy import deepcopy
 from enum import IntEnum, auto
-from pathlib import PosixPath
+from pathlib import Path
 from sgfmill import sgf
 from icecream import ic
 
 from src import GRID_SIZE
+from src.utils.colors import Color
 
 
 class Cell(IntEnum):
@@ -30,7 +31,7 @@ class Game:
         self.board_history: list = []
         self.board = [[Cell.EMPTY for _ in range(GRID_SIZE)] for _ in range(GRID_SIZE)]
 
-    def add_sgf(self, filename: PosixPath) -> None:
+    def add_sgf(self, filename: Path) -> None:
         with open(filename, "rb") as f:
             main_sequence = sgf.Sgf_game.from_bytes(f.read()).get_main_sequence()
 
@@ -40,7 +41,9 @@ class Game:
                 self.add_move(*move)
 
     def add_move(self, x, y) -> None:
-        current_color, opponent_color = (Cell.BLACK, Cell.WHITE) if self.move % 2 == 0 else (Cell.WHITE, Cell.BLACK)
+        current_color, opponent_color = (
+            (Cell.BLACK, Cell.WHITE) if self.move % 2 == 0 else (Cell.WHITE, Cell.BLACK)
+        )
 
         x, y = y, 18 - x
         assert self.is_empty((x, y)), "Cell is occupied"
@@ -78,10 +81,18 @@ class Game:
             # visited cells have no liberties and are removed
             for cell in visited:
                 board_after_capture[cell[1]][cell[0]] = Cell.EMPTY
+                if opponent_color == Cell.WHITE:
+                    self.captured_white += 1
+                else:
+                    self.captured_black += 1
 
-        assert self.get_liberties(x, y, opponent_color, board_after_capture) > 0, "Move would lead to suicide"
+        assert (
+            self.get_liberties(x, y, opponent_color, board_after_capture) > 0
+        ), "Move would lead to suicide"
         if len(self.board_history) > 2:
-            assert board_after_capture != self.board_history[-2], "Move would lead to invalid repetition (ko)"
+            assert (
+                board_after_capture != self.board_history[-2]
+            ), "Move would lead to invalid repetition (ko)"
 
         self.board = board_after_capture
         self.move += 1
@@ -122,5 +133,3 @@ class Game:
             if self.get_color(neighbor, board) != opponent_color:
                 count += 1
         return count
-
-

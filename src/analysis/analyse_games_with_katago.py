@@ -1,4 +1,3 @@
-import random
 import json
 import subprocess
 import sys
@@ -36,12 +35,6 @@ def analyse_position(process, data: dict) -> None:
     process.stdin.flush()
 
 
-def get_start_and_amount(max_n: int) -> tuple[int, int]:
-    missing = random.randint(MIN_MISSING, MAX_MISSING)
-    start = random.randint(0, max_n - missing)
-    return start, missing
-
-
 def main():
     model_path = str(KATAGO_PATH.joinpath("models", "b28c512nbt.bin.gz"))
     config_path = str(KATAGO_PATH.joinpath("configs", "analysis_example.cfg"))
@@ -77,6 +70,8 @@ def main():
         analyse_position(process, data)
         results[path.name] = []
         total_moves += len(moves)
+
+    assert process.stdout, "No Output"
 
     for i in tqdm(range(total_moves)):
         while True:
