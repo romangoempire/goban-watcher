@@ -1,4 +1,4 @@
-from pathlib import PosixPath
+from pathlib import Path
 
 import pygame
 from pygame import SurfaceType
@@ -14,7 +14,11 @@ def add_stones(screen: SurfaceType, game: Game) -> SurfaceType:
             if game.is_empty((x, y)):
                 continue
 
-            color = Color.BLACK.value if game.board[y][x] == Cell.BLACK else Color.WHITE.value
+            color = (
+                Color.BLACK.value
+                if game.board[y][x] == Cell.BLACK
+                else Color.WHITE.value
+            )
             pygame.draw.circle(
                 screen,
                 color,
@@ -29,8 +33,12 @@ def add_grid(screen: SurfaceType) -> SurfaceType:
     for x in range(GRID_SIZE):
         increment = START + x * CELL_SIZE
         width = 1
-        pygame.draw.line(screen, Color.BLACK.value, [START, increment], [END, increment], width)
-        pygame.draw.line(screen, Color.BLACK.value, [increment, START], [increment, END], width)
+        pygame.draw.line(
+            screen, Color.BLACK.value, [START, increment], [END, increment], width
+        )
+        pygame.draw.line(
+            screen, Color.BLACK.value, [increment, START], [increment, END], width
+        )
 
     # Hoshi
     for x in HOSHIS:
@@ -47,7 +55,7 @@ def add_grid(screen: SurfaceType) -> SurfaceType:
     return screen
 
 
-def save_png(game, filename: PosixPath) -> None:
+def save_png(game, filename: Path) -> None:
     assert filename.suffix == ".png", "filename must end with .png"
     surface = pygame.Surface((800, 800))
 
@@ -56,4 +64,3 @@ def save_png(game, filename: PosixPath) -> None:
     surface = add_stones(surface, game)
 
     pygame.image.save(surface, filename)
-

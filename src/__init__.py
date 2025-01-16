@@ -2,6 +2,7 @@ from pathlib import Path
 
 ROOT_DIR = Path(__file__).parent.parent
 IMG_PATH = ROOT_DIR.joinpath("images")
+DATA_PATH = ROOT_DIR.joinpath("data")
 SGF_PATH = ROOT_DIR.joinpath("sgf")
 KATAGO_PATH = ROOT_DIR.joinpath("katago")
 

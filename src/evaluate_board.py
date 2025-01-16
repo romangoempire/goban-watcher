@@ -216,11 +216,6 @@ def main():
 
     corners = setup_corners(cap)
 
-    diffs = []
-    frames = []
-    last_frame = None
-    total_count = 0
-    count = 0
     while True:
         key = cv2.waitKey(1) & 0xFF
         if key == ord("q"):
@@ -233,8 +228,17 @@ def main():
         kernel = np.array([[0, -1, 0], [-1, 5, -1], [0, -1, 0]])
         sharpened_image = cv2.filter2D(blurred_image, -1, kernel)
 
-        results = evaluate_board(model, sharpened_image)
-        # ToDo do something with results
+        # resize image for pixel comparison
+        # calculate percentage of pixel change
+        # calculate moving average  30 frames
+
+        # evaluate position if ma is smaller threshold
+
+        # results = evaluate_board(model, sharpened_image)
+
+        # if 1-2 stones added add -> add moves to game
+        # case multiple stones added -> run simple evaluation
+        # case add and remove stone -> run complex evaluation
 
     cap.release()
 

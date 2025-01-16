@@ -12,10 +12,11 @@ from cv2.typing import MatLike
 
 sys.path.append(str(Path(__file__).parent.parent.parent))
 
-from src import CELL_SIZE, SCREEN_SIZE
+from src import CELL_SIZE, IMG_PATH, SCREEN_SIZE
 from src.utils.colors import Color
 
 CORNERS_INDEXES = [0, 1, 2, 3]
+GAMES_PATH = IMG_PATH.joinpath("games")
 
 
 def default_mouse_callback(event, x, y, flags, param):
@@ -98,9 +99,7 @@ def main():
 
     corners = setup_corners(cap)
 
-    diffs = []
     frames = []
-    last_frame = None
     total_count = 0
     count = 0
 
@@ -115,35 +114,17 @@ def main():
         _, frame = cap.read()
         transformed_frame = transform_frame(frame, corners)
 
-        blurred_image = cv2.GaussianBlur(transformed_frame, (5, 5), 0)
-        kernel = np.array([[0, -1, 0], [-1, 5, -1], [0, -1, 0]])
-        sharpened_image = cv2.filter2D(blurred_image, -1, kernel)
-
-        if last_frame is not None:
-            diff = cv2.absdiff(last_frame, sharpened_image)
-            diff_magnitude = np.linalg.norm(diff.astype(np.float32), axis=2)
-            threshold = 50
-            mask_above_threshold = diff_magnitude > threshold
-            percentage_above_threshold = round(np.mean(mask_above_threshold) * 100, 4)
-
-            show_diff = cv2.cvtColor(diff, cv2.COLOR_BGR2GRAY)
-            cv2.imshow("Diff", show_diff)
-            diffs.append(percentage_above_threshold)
-
-        last_frame = sharpened_image
-        frames.append(last_frame)
-        if count > 100:
+        frames.append(transformed_frame)
+        if count == 99:
             for i, frame in enumerate(frames):
-                cv2.imwrite(f"images/{run}/{total_count + i}.jpg", frame)
+                cv2.imwrite(f"{GAMES_PATH}/{run}/{total_count + i}.jpg", frame)
             print("Saving images", total_count + count)
             total_count += count
             count = 0
             frames = []
-        count += 1
-        # results = evaluate_board(model, transformed_frame)
+        else:
+            count += 1
 
-    with open(f"data/{run}.json", "w") as f:
-        json.dump(diffs, f, indent=4)
     cap.release()
 
 
