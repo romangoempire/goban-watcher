@@ -2,10 +2,8 @@ from copy import deepcopy
 from enum import IntEnum, auto
 from pathlib import Path
 from sgfmill import sgf
-from icecream import ic
 
 from src import GRID_SIZE
-from src.utils.colors import Color
 
 
 class Cell(IntEnum):
@@ -38,15 +36,18 @@ class Game:
         for node in main_sequence:
             _, move = node.get_move()
             if move:
-                self.add_move(*move)
+                x, y = move
+                x, y = y, GRID_SIZE - 1 - x  # change due sgf coordinate order
+                self.add_move(x, y)
 
     def add_move(self, x, y) -> None:
         current_color, opponent_color = (
-            (Cell.BLACK, Cell.WHITE) if self.move % 2 == 0 else (Cell.WHITE, Cell.BLACK)
-        )
+            (Cell.BLACK, Cell.WHITE),
+            (Cell.WHITE, Cell.BLACK),
+        )[self.move % 2]
 
-        x, y = y, 18 - x
-        assert self.is_empty((x, y)), "Cell is occupied"
+        if not self.is_empty((x, y)):
+            return
 
         board_after_capture = deepcopy(self.board)
         board_after_capture[y][x] = current_color

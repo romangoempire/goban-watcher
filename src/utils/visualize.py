@@ -3,9 +3,9 @@ from pathlib import Path
 import pygame
 from pygame import SurfaceType
 
-from game import Game, Cell
-from colors import Color
-from src import GRID_SIZE, START, END, HOSHIS, CELL_SIZE
+from src import CELL_SIZE, END, GRID_SIZE, HOSHIS, START
+from src.utils.colors import Color
+from src.utils.game import Cell, Game
 
 
 def add_stones(screen: SurfaceType, game: Game) -> SurfaceType:
@@ -28,7 +28,7 @@ def add_stones(screen: SurfaceType, game: Game) -> SurfaceType:
     return screen
 
 
-def add_grid(screen: SurfaceType) -> SurfaceType:
+def game_add_grid(screen: SurfaceType) -> SurfaceType:
     # Lines
     for x in range(GRID_SIZE):
         increment = START + x * CELL_SIZE
@@ -60,7 +60,7 @@ def save_png(game, filename: Path) -> None:
     surface = pygame.Surface((800, 800))
 
     surface.fill(Color.BROWN.value)
-    surface = add_grid(surface)
+    surface = game_add_grid(surface)
     surface = add_stones(surface, game)
 
     pygame.image.save(surface, filename)

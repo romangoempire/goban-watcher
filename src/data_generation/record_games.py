@@ -1,21 +1,19 @@
-import json
 import os
-from pathlib import Path
 import sys
 import time
 from copy import deepcopy
 from datetime import datetime
+from pathlib import Path
 
 import cv2
-import numpy as np
 from cv2.typing import MatLike
 
 sys.path.append(str(Path(__file__).parent.parent.parent))
 
-from src import CELL_SIZE, IMG_PATH, SCREEN_SIZE
+from src import CELL_SIZE, CORNER_INDEXES, IMG_PATH, SCREEN_SIZE
 from src.utils.colors import Color
+from src.utils.cv2_helper import add_grid, transform_frame
 
-CORNERS_INDEXES = [0, 1, 2, 3]
 GAMES_PATH = IMG_PATH.joinpath("games")
 
 
@@ -23,23 +21,6 @@ def default_mouse_callback(event, x, y, flags, param):
     if event == cv2.EVENT_MOUSEMOVE:
         global default_mouse
         default_mouse = [x, y]
-
-
-def add_grid(frame: MatLike) -> MatLike:
-    for i in range(0, SCREEN_SIZE, CELL_SIZE):
-        cv2.line(frame, (i, 0), (i, SCREEN_SIZE), Color.GREEN.value)
-        cv2.line(frame, (0, i), (SCREEN_SIZE, i), Color.GREEN.value)
-    return frame
-
-
-def transform_frame(frame: MatLike, corners: list) -> MatLike:
-    matrix = cv2.getPerspectiveTransform(
-        np.float32([[corner[0], corner[1]] for corner in corners]),
-        np.float32(
-            [[0, 0], [SCREEN_SIZE, 0], [SCREEN_SIZE, SCREEN_SIZE], [0, SCREEN_SIZE]]
-        ),
-    )
-    return cv2.warpPerspective(frame, matrix, (SCREEN_SIZE, SCREEN_SIZE))
 
 
 def setup_corners(cap: cv2.VideoCapture) -> list[list[int]]:
@@ -67,7 +48,7 @@ def setup_corners(cap: cv2.VideoCapture) -> list[list[int]]:
 
         display_img = cv2.resize(display_img, (x, y))
 
-        for index in CORNERS_INDEXES:
+        for index in CORNER_INDEXES:
             if key == ord(str(index + 1)):
                 selected_corner = index if selected_corner != index else None
 
@@ -78,8 +59,7 @@ def setup_corners(cap: cv2.VideoCapture) -> list[list[int]]:
             cv2.line(display_img, corner, corners[index - 1], Color.GREEN.value)
 
         transformed_frame = transform_frame(frame, corners)
-        display_transformed_frame = deepcopy(transformed_frame)
-        display_transformed_frame = add_grid(display_transformed_frame)
+        display_transformed_frame = add_grid(transformed_frame)
 
         cv2.imshow("Default", display_img)
         cv2.imshow("Transformed", display_transformed_frame)

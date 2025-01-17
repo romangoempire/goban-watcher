@@ -6,6 +6,10 @@ import cv2
 import numpy as np
 from icecream import ic
 
+from src import HALF_CELL_SIZE
+from src.utils.colors import Color
+from src.utils.cv2_helper import add_grid, default_corners, transform_frame
+
 IMAGE_DIR = "images/raw"
 DATA_PATH = "images/data.json"
 
@@ -13,7 +17,6 @@ GRID_SIZE = 19
 TRANSFORMED_SCREEN_SIZE = 1000
 CELL_SIZE = TRANSFORMED_SCREEN_SIZE // GRID_SIZE
 CORNERS_INDEXES = [0, 1, 2, 3]
-
 
 
 class Cell(StrEnum):
@@ -105,16 +108,7 @@ for image_name in missing_labelling_file_names:
         int(img.shape[0]),
     )
 
-    left = x // 4
-    right = x - x // 4
-    top = y // 4
-    bottom = y - y // 4
-    corners = [
-        [left, top],
-        [right, top],
-        [right, bottom],
-        [left, bottom],
-    ]
+    corners = default_corners(img.shape)
 
     # lags for original size
     resized_img = cv2.resize(img, (x, y))
@@ -148,40 +142,11 @@ for image_name in missing_labelling_file_names:
             cv2.line(display_img, corner, corners[index - 1], Color.GREEN.value)
 
         # transform image
-        matrix = cv2.getPerspectiveTransform(
-            np.float32([[corner[0], corner[1]] for corner in corners]),
-            np.float32(
-                [
-                    [0, 0],
-                    [TRANSFORMED_SCREEN_SIZE, 0],
-                    [TRANSFORMED_SCREEN_SIZE, TRANSFORMED_SCREEN_SIZE],
-                    [0, TRANSFORMED_SCREEN_SIZE],
-                ]
-            ),
-        )
-        transformed_img = cv2.warpPerspective(
-            img,
-            matrix,
-            (
-                TRANSFORMED_SCREEN_SIZE,
-                TRANSFORMED_SCREEN_SIZE,
-            ),
-        )
+        transformed_img = transform_frame(img, corners)
         display_transformed_img = transformed_img.copy()
 
-        for i in range(GRID_SIZE):
-            cv2.line(
-                display_transformed_img,
-                (0, i * CELL_SIZE),
-                (TRANSFORMED_SCREEN_SIZE, i * CELL_SIZE),
-                Color.GREEN.value,
-            )
-            cv2.line(
-                display_transformed_img,
-                (i * CELL_SIZE, 0),
-                (i * CELL_SIZE, TRANSFORMED_SCREEN_SIZE),
-                Color.GREEN.value,
-            )
+        display_transformed_img = add_grid(display_transformed_img)
+
         x, y = 0, 0
         color = Color.BLACK.value
 
@@ -228,9 +193,6 @@ for image_name in missing_labelling_file_names:
             data[image_name]["board"] = board
             save_data()
 
-            transformed_cell_size = TRANSFORMED_SCREEN_SIZE // 19
-            half_transformed_cell_size = transformed_cell_size // 2
-
             for y in range(GRID_SIZE):
                 for x in range(GRID_SIZE):
                     cell = board[y][x]
@@ -242,16 +204,16 @@ for image_name in missing_labelling_file_names:
                     else:
                         folder = "empty"
 
-                    half_cell_size = transformed_cell_size // 2
-                    y_start = max(0, y * transformed_cell_size - half_cell_size)
+                    half_cell_size = CELL_SIZE // 2
+                    y_start = max(0, y * CELL_SIZE - HALF_CELL_SIZE)
                     y_end = min(
                         transformed_img.shape[0],
-                        (y + 1) * transformed_cell_size + half_cell_size,
+                        (y + 1) * CELL_SIZE + HALF_CELL_SIZE,
                     )
-                    x_start = max(0, x * transformed_cell_size - half_cell_size)
+                    x_start = max(0, x * CELL_SIZE - HALF_CELL_SIZE)
                     x_end = min(
                         transformed_img.shape[1],
-                        (x + 1) * transformed_cell_size + half_cell_size,
+                        (x + 1) * CELL_SIZE + HALF_CELL_SIZE,
                     )
 
                     cv2.imwrite(
