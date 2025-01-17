@@ -2,23 +2,22 @@ import sys
 import time
 from copy import deepcopy
 from pathlib import Path
-from datetime import datetime
+
 import cv2
-from fsspec.config import json
 import numpy as np
 import torch
 import torchvision.transforms as transforms
 from cv2.typing import MatLike
-from icecream import ic
 
 sys.path.append(str(Path(__file__).parent.parent))
 
-from src import CELL_SIZE, END, GRID_SIZE, HALF_CELL_SIZE, HOSHIS, SCREEN_SIZE, START
+from src import CELL_SIZE, GRID_SIZE, HALF_CELL_SIZE, CORNER_INDEXES
 from src.utils.colors import Color
-from stone_classification import StoneClassifactionModel
+from src.stone_classification import StoneClassifactionModel
+from src.utils.cv2_helper import transform_frame, default_corners, add_grid
 
 PATH = "weights/250107171701-classification_weights.pth"
-CORNERS_INDEXES = [0, 1, 2, 3]
+
 
 TRANSFORM = transforms.Compose(
     [
@@ -34,23 +33,6 @@ def default_mouse_callback(event, x, y, flags, param):
     if event == cv2.EVENT_MOUSEMOVE:
         global default_mouse
         default_mouse = [x, y]
-
-
-def add_grid(frame: MatLike) -> MatLike:
-    for i in range(0, SCREEN_SIZE, CELL_SIZE):
-        cv2.line(frame, (i, 0), (i, SCREEN_SIZE), Color.GREEN.value)
-        cv2.line(frame, (0, i), (SCREEN_SIZE, i), Color.GREEN.value)
-    return frame
-
-
-def transform_frame(frame: MatLike, corners: list) -> MatLike:
-    matrix = cv2.getPerspectiveTransform(
-        np.float32([[corner[0], corner[1]] for corner in corners]),
-        np.float32(
-            [[0, 0], [SCREEN_SIZE, 0], [SCREEN_SIZE, SCREEN_SIZE], [0, SCREEN_SIZE]]
-        ),
-    )
-    return cv2.warpPerspective(frame, matrix, (SCREEN_SIZE, SCREEN_SIZE))
 
 
 def evaluate_board(model, frame: MatLike) -> list[int]:
@@ -78,12 +60,9 @@ def evaluate_board(model, frame: MatLike) -> list[int]:
 
 
 def setup_corners(cap: cv2.VideoCapture) -> list[list[int]]:
-    x, y = 1920, 1080
-    left = x // 4
-    right = x - x // 4
-    top = y // 4
-    bottom = y - y // 4
-    corners = [[left, top], [right, top], [right, bottom], [left, bottom]]
+    shape = (1920, 1080, 0)
+    x, y, _ = shape
+    corners = default_corners(shape)
 
     selected_corner = None
 
@@ -102,7 +81,7 @@ def setup_corners(cap: cv2.VideoCapture) -> list[list[int]]:
 
         display_img = cv2.resize(display_img, (x, y))
 
-        for index in CORNERS_INDEXES:
+        for index in CORNER_INDEXES:
             if key == ord(str(index + 1)):
                 selected_corner = index if selected_corner != index else None
 
@@ -113,92 +92,12 @@ def setup_corners(cap: cv2.VideoCapture) -> list[list[int]]:
             cv2.line(display_img, corner, corners[index - 1], Color.GREEN.value)
 
         transformed_frame = transform_frame(frame, corners)
-        display_transformed_frame = deepcopy(transformed_frame)
-        display_transformed_frame = add_grid(display_transformed_frame)
+        display_transformed_frame = add_grid(transformed_frame)
 
         cv2.imshow("Default", display_img)
         cv2.imshow("Transformed", display_transformed_frame)
     cv2.destroyAllWindows()
     return corners
-
-
-# def display_results(cap: cv2.VideoCapture, model, corners: list) -> None:
-#     pygame.init()
-#     width, height = SCREEN_SIZE, SCREEN_SIZE
-
-#     screen = pygame.display.set_mode((width, height))
-#     pygame.display.set_caption("Evaluation")
-#     clock = pygame.time.Clock()
-
-#     running = True
-#     while running:
-#         for event in pygame.event.get():
-#             if event.type == pygame.QUIT:
-#                 running = False
-
-#         _, frame = cap.read()
-#         transformed_frame = transform_frame(frame, corners)
-#         transformed_frame = add_grid(transformed_frame)
-#         cv2.imshow("Transformed", transformed_frame)
-
-#         results = evaluate_board(model, transformed_frame)
-#         screen.fill(Color.BROWN.value)
-#         screen = display_grid(screen)
-#         screen = add_stones(screen, results)
-
-#         pygame.display.flip()
-#         clock.tick(2)
-
-#     pygame.quit()
-
-
-# def display_grid(screen) -> pygame.Surface:
-#     # Lines
-#     for x in range(GRID_SIZE):
-#         increment = START + x * CELL_SIZE
-#         width = 1
-#         pygame.draw.line(
-#             screen, Color.BLACK.value, [START, increment], [END, increment], width
-#         )
-#         pygame.draw.line(
-#             screen, Color.BLACK.value, [increment, START], [increment, END], width
-#         )
-
-#     # Hoshi
-#     for x in HOSHIS:
-#         for y in HOSHIS:
-#             pygame.draw.circle(
-#                 screen,
-#                 Color.BLACK.value,
-#                 [
-#                     CELL_SIZE // 2 + x * CELL_SIZE + 1,
-#                     CELL_SIZE // 2 + y * CELL_SIZE + 1,
-#                 ],
-#                 5,
-#             )
-#     return screen
-
-
-# def add_stones(screen: pygame.Surface, results: list) -> pygame.Surface:
-#     for i, cell in enumerate(results):
-#         if cell == 0:
-#             continue
-
-#         color = Color.BLACK.value if cell == 1 else Color.WHITE.value
-
-#         x = i % 19
-#         y = i // 19
-
-#         pygame.draw.circle(
-#             screen,
-#             color,
-#             [
-#                 CELL_SIZE // 2 + x * CELL_SIZE + 1,
-#                 CELL_SIZE // 2 + y * CELL_SIZE + 1,
-#             ],
-#             CELL_SIZE // 2,
-#         )
-#     return screen
 
 
 def main():

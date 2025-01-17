@@ -3,70 +3,18 @@ from copy import deepcopy
 from pathlib import Path
 
 import cv2
-import numpy as np
 from tqdm import tqdm
 
-from src import IMG_PATH, GRID_SIZE, CELL_SIZE, SCREEN_SIZE
+from src import IMG_PATH, SCREEN_SIZE, CORNER_INDEXES
 from src.utils.colors import Color
+from src.utils.cv2_helper import add_grid, transform_frame, default_corners
 
 MAX_EDGE_LENGTH = 2000
-CORNER_INDEXES = [0, 1, 2, 3]
 
-
-# METHODS
 
 def adjust_image_size(img):
     while any([value > MAX_EDGE_LENGTH for value in img.shape]):
         img = cv2.resize(img, None, fx=0.5, fy=0.5)
-    return img
-
-
-def default_corners(shape: tuple[int, int, int]) -> list[list[int]]:
-    """Corners should be a square in the middle of the image."""
-    assert len(shape) == 3, "Invalid shape"
-    y, x, _ = shape
-
-    left = x // 4
-    right = x - x // 4
-    top = y // 4
-    bottom = y - y // 4
-    return [
-        [left, top],
-        [right, top],
-        [right, bottom],
-        [left, bottom],
-    ]
-
-
-def transform_image(img: np.ndarray, corners: list[list[int]]) -> np.ndarray:
-    matrix = cv2.getPerspectiveTransform(
-        np.float32([[c[0], c[1]] for c in corners]),
-        np.float32(
-            [
-                [0, 0],
-                [SCREEN_SIZE, 0],
-                [SCREEN_SIZE, SCREEN_SIZE],
-                [0, SCREEN_SIZE],
-            ]
-        ),
-    )
-    return cv2.warpPerspective(img, matrix, (SCREEN_SIZE, SCREEN_SIZE))
-
-
-def draw_grid(img: np.ndarray) -> np.ndarray:
-    for i in range(GRID_SIZE):
-        cv2.line(
-            img,
-            (0, i * CELL_SIZE),
-            (SCREEN_SIZE, i * CELL_SIZE),
-            Color.GREEN.value,
-        )
-        cv2.line(
-            img,
-            (i * CELL_SIZE, 0),
-            (i * CELL_SIZE, SCREEN_SIZE),
-            Color.GREEN.value,
-        )
     return img
 
 
@@ -75,8 +23,6 @@ def mouse_callback(event, x, y, flags, param):
         global mouse
         mouse = [x, y]
 
-
-# MAIN
 
 img_dir = IMG_PATH.joinpath("selected_sgf")
 board_dir = IMG_PATH.joinpath("boards")
@@ -90,7 +36,8 @@ else:
 
 image_paths = {
     str(i): [
-        file for file in img_dir.joinpath(str(i)).iterdir()
+        file
+        for file in img_dir.joinpath(str(i)).iterdir()
         if file.is_file() and not file.name.startswith(".")
     ]
     for i in range(1, 21)
@@ -105,7 +52,6 @@ cv2.setMouseCallback(image_window_name, mouse_callback)
 mouse = [0, 0]
 
 for sgf_number, paths in tqdm(image_paths.items()):
-
     sgf_img = cv2.imread(str(board_dir.joinpath(f"game_{sgf_number}.png")))
     sgf_img = cv2.resize(sgf_img, (SCREEN_SIZE, SCREEN_SIZE))
     for image_path in tqdm(paths):
@@ -122,12 +68,12 @@ for sgf_number, paths in tqdm(image_paths.items()):
         selected_corner = None
         while True:
             key = cv2.waitKey(1) & 0xFF
-            if key == ord('q'):
+            if key == ord("q"):
                 exit(0)
-            elif key == ord('r'):
+            elif key == ord("r"):
                 board_img = cv2.rotate(board_img, cv2.ROTATE_90_CLOCKWISE)
                 cv2.imwrite(image_path, board_img)
-            elif key == ord('s'):
+            elif key == ord("s"):
                 percentage_corners = [
                     [corner[0] / board_img.shape[1], corner[1] / board_img.shape[0]]
                     for corner in corners
@@ -151,10 +97,12 @@ for sgf_number, paths in tqdm(image_paths.items()):
             display_board_image = deepcopy(board_img)
 
             for index, corner in enumerate(corners):
-                cv2.line(display_board_image, corner, corners[index - 1], Color.GREEN.value)
+                cv2.line(
+                    display_board_image, corner, corners[index - 1], Color.GREEN.value
+                )
 
-            transformed_img = transform_image(board_img, corners)
-            transform_img = draw_grid(transformed_img)
+            transformed_img = transform_frame(board_img, corners)
+            transform_img = add_grid(transformed_img)
 
             cv2.imshow(sgf_window_name, cv2.hconcat([sgf_img, transformed_img]))
             cv2.imshow(image_window_name, display_board_image)

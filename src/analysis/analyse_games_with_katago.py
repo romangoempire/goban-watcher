@@ -30,6 +30,7 @@ def get_moves(path: Path) -> list[tuple[str, str]]:
 
 
 def analyse_position(process, data: dict) -> None:
+    # katago analyse requires input as oneline
     data_string = json.dumps(data).replace("\n", "") + "\n"
     process.stdin.write(data_string)
     process.stdin.flush()
