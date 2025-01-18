@@ -6,7 +6,7 @@ from tqdm import tqdm
 
 from src import IMG_PATH
 from src.utils.cv2_helper import blur_and_sharpen
-from src.utils.pixel_changes import percentage_change
+from src.utils.pixel_changes import percentage_pixel_changed
 
 run = "20250115"  # Todo change to your run
 game_path = IMG_PATH.joinpath(run)
@@ -23,7 +23,7 @@ for filename in tqdm(file_names):
         last_img = img
         continue
 
-    changes.append(percentage_change(last_img, img))
+    changes.append(percentage_pixel_changed(last_img, img))
     last_img = img
 
 

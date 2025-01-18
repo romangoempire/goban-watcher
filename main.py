@@ -11,13 +11,20 @@ from cv2.typing import MatLike
 
 sys.path.append(str(Path(__file__).parent.parent))
 
-from src import CELL_SIZE, GRID_SIZE, HALF_CELL_SIZE, CORNER_INDEXES
-from src.utils.colors import Color
+from src import CELL_SIZE, CORNER_INDEXES, GRID_SIZE, HALF_CELL_SIZE
 from src.stone_classification import StoneClassifactionModel
-from src.utils.cv2_helper import transform_frame, default_corners, add_grid
+from src.utils.colors import Color
+from src.utils.custom_logger import get_color_logger
+from src.utils.cv2_helper import (
+    add_grid,
+    blur_and_sharpen,
+    default_corners,
+    transform_frame,
+)
+from src.utils.pixel_changes import percentage_pixel_changed
 
 PATH = "weights/250107171701-classification_weights.pth"
-
+AMOUNT_FRAMES_MOVING_AVERAGE = 30
 
 TRANSFORM = transforms.Compose(
     [
@@ -35,7 +42,7 @@ def default_mouse_callback(event, x, y, flags, param):
         default_mouse = [x, y]
 
 
-def evaluate_board(model, frame: MatLike) -> list[int]:
+def classify_all_cells(model, frame: MatLike) -> list[int]:
     low_offsets = np.arange(0, GRID_SIZE) * CELL_SIZE - HALF_CELL_SIZE
     high_offsets = np.arange(1, GRID_SIZE + 1) * CELL_SIZE + HALF_CELL_SIZE
 
@@ -60,8 +67,8 @@ def evaluate_board(model, frame: MatLike) -> list[int]:
 
 
 def setup_corners(cap: cv2.VideoCapture) -> list[list[int]]:
-    shape = (1920, 1080, 0)
-    x, y, _ = shape
+    shape = (1080, 1920, 0)
+    y, x, _ = shape
     corners = default_corners(shape)
 
     selected_corner = None
@@ -101,6 +108,7 @@ def setup_corners(cap: cv2.VideoCapture) -> list[list[int]]:
 
 
 def main():
+    logger = get_color_logger()
     model = StoneClassifactionModel()
     model.load_state_dict(torch.load(PATH, weights_only=True))
 
@@ -115,29 +123,53 @@ def main():
 
     corners = setup_corners(cap)
 
+    threshold = 0.01
+    moving_average = None
+    last_img = None
+    high_movement = False
+
+    percentage_changes = []
+
     while True:
         key = cv2.waitKey(1) & 0xFF
         if key == ord("q"):
             break
 
         _, frame = cap.read()
-        transformed_frame = transform_frame(frame, corners)
+        img = transform_frame(frame, corners)
+        img = blur_and_sharpen(img)
 
-        blurred_image = cv2.GaussianBlur(transformed_frame, (5, 5), 0)
-        kernel = np.array([[0, -1, 0], [-1, 5, -1], [0, -1, 0]])
-        sharpened_image = cv2.filter2D(blurred_image, -1, kernel)
+        if last_img is None:
+            last_img = img
+            continue
 
-        # resize image for pixel comparison
-        # calculate percentage of pixel change
-        # calculate moving average  30 frames
+        percent_changed = percentage_pixel_changed(last_img, img)
+        percentage_changes.append(percent_changed)
 
-        # evaluate position if ma is smaller threshold
+        if len(percentage_changes) == AMOUNT_FRAMES_MOVING_AVERAGE:
+            moving_average = sum(percentage_changes) / AMOUNT_FRAMES_MOVING_AVERAGE
+            percentage_changes.pop(0)
 
-        # results = evaluate_board(model, sharpened_image)
+        if not moving_average:
+            continue
 
-        # if 1-2 stones added add -> add moves to game
-        # case multiple stones added -> run simple evaluation
-        # case add and remove stone -> run complex evaluation
+        # High movement
+        if percent_changed > threshold and percent_changed > moving_average:
+            logger.debug("High Movement")
+            high_movement = True
+
+        # After movement
+        if percent_changed < threshold and moving_average > threshold and high_movement:
+            logger.info("End High Movement")
+            high_movement = False
+            results = classify_all_cells(model, img)
+            for i in range(GRID_SIZE):
+                logger.info(results[i * GRID_SIZE : i * GRID_SIZE + GRID_SIZE])
+
+            # if 1-2 stones added add -> add moves to game
+            # case multiple stones added -> run simple evaluation
+            # case add and remove stone -> run complex evaluation
+        last_img = img
 
     cap.release()
 

@@ -3,7 +3,7 @@ import numpy as np
 from cv2.typing import MatLike
 
 
-def percentage_change(
+def percentage_pixel_changed(
     last_img: MatLike,
     current_img: MatLike,
     threshold: int = 50,
@@ -14,4 +14,4 @@ def percentage_change(
     diff_magnitude = np.linalg.norm(diff.astype(np.float32), axis=2)
     mask_above_threshold = diff_magnitude > threshold
 
-    return round(np.mean(mask_above_threshold) * 100, round_digits)
+    return round(float(np.mean(mask_above_threshold)) * 100, round_digits)
