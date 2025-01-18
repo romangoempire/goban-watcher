@@ -4,6 +4,10 @@ import os
 import cv2
 import streamlit as st
 from cv2.typing import MatLike
+import sys
+from pathlib import Path
+
+sys.path.append(str(Path(__file__).parent.parent.parent))
 
 from src import DATA_PATH, IMG_PATH
 
@@ -27,7 +31,7 @@ def load_image(run: str, number: int) -> MatLike:
 
 st.title("Pixel Changes")
 
-recordings = [r.rstrip(".json") for r in os.listdir("data")]
+recordings = [r.rstrip(".json") for r in os.listdir(data_path)]
 
 run = st.sidebar.selectbox("Recording", recordings)
 results = load_json(run)
