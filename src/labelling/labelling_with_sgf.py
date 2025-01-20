@@ -5,9 +5,9 @@ from pathlib import Path
 import cv2
 from tqdm import tqdm
 
-from src import IMG_PATH, SCREEN_SIZE, CORNER_INDEXES
+from src import CORNER_INDEXES, IMG_PATH, SCREEN_SIZE
 from src.utils.colors import Color
-from src.utils.cv2_helper import add_grid, transform_frame, default_corners
+from src.utils.cv2_helper import add_grid, default_corners, transform_frame
 
 MAX_EDGE_LENGTH = 2000
 

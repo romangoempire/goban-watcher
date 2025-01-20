@@ -20,6 +20,3 @@ tqdm
 pygame
 sgfmill
 python-dotenv
-
-streamlit
-watchdog
