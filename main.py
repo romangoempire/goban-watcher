@@ -2,6 +2,7 @@ import sys
 import time
 from copy import deepcopy
 from pathlib import Path
+import pickle
 
 import cv2
 import numpy as np
@@ -11,7 +12,14 @@ from cv2.typing import MatLike
 
 sys.path.append(str(Path(__file__).parent.parent))
 
-from src import CELL_SIZE, CORNER_INDEXES, GRID_SIZE, HALF_CELL_SIZE
+from src import (
+    CELL_SIZE,
+    CORNER_INDEXES,
+    GRID_SIZE,
+    HALF_CELL_SIZE,
+    HOSHIS,
+    SCREEN_SIZE,
+)
 from src.stone_classification import StoneClassifactionModel
 from src.utils.colors import Color
 from src.utils.custom_logger import get_color_logger
@@ -21,10 +29,10 @@ from src.utils.cv2_helper import (
     default_corners,
     transform_frame,
 )
-from src.utils.pixel_changes import percentage_pixel_changed
+from src.utils.game import Cell, Game
 
 PATH = "weights/250107171701-classification_weights.pth"
-AMOUNT_FRAMES_MOVING_AVERAGE = 30
+
 
 TRANSFORM = transforms.Compose(
     [
@@ -40,30 +48,6 @@ def default_mouse_callback(event, x, y, flags, param):
     if event == cv2.EVENT_MOUSEMOVE:
         global default_mouse
         default_mouse = [x, y]
-
-
-def classify_all_cells(model, frame: MatLike) -> list[int]:
-    low_offsets = np.arange(0, GRID_SIZE) * CELL_SIZE - HALF_CELL_SIZE
-    high_offsets = np.arange(1, GRID_SIZE + 1) * CELL_SIZE + HALF_CELL_SIZE
-
-    low_offsets = np.clip(low_offsets, 0, frame.shape[0])
-    high_offsets = np.clip(high_offsets, 0, frame.shape[1])
-
-    cells = np.array(
-        [
-            TRANSFORM(
-                frame[
-                    low_offsets[y] : high_offsets[y], low_offsets[x] : high_offsets[x]
-                ]
-            )
-            for y in range(GRID_SIZE)
-            for x in range(GRID_SIZE)
-        ]
-    )
-
-    outputs = model(torch.from_numpy(cells))
-    _, predictions = torch.max(outputs, 1)
-    return predictions.tolist()
 
 
 def setup_corners(cap: cv2.VideoCapture) -> list[list[int]]:
@@ -107,10 +91,102 @@ def setup_corners(cap: cv2.VideoCapture) -> list[list[int]]:
     return corners
 
 
+def classify_all_cells(model, frame: MatLike) -> list[Cell]:
+    low_offsets = np.arange(0, GRID_SIZE) * CELL_SIZE - HALF_CELL_SIZE
+    high_offsets = np.arange(1, GRID_SIZE + 1) * CELL_SIZE + HALF_CELL_SIZE
+
+    low_offsets = np.clip(low_offsets, 0, frame.shape[0])
+    high_offsets = np.clip(high_offsets, 0, frame.shape[1])
+
+    cells = np.array(
+        [
+            cv2.resize(
+                frame[
+                    low_offsets[y] : high_offsets[y], low_offsets[x] : high_offsets[x]
+                ],
+                (CELL_SIZE, CELL_SIZE),
+            ).flatten()
+            for y in range(GRID_SIZE)
+            for x in range(GRID_SIZE)
+        ]
+    )
+
+    results = model.predict(cells)
+
+    results = [Cell(r) for r in results]
+    return results
+
+
+def base_visual_board() -> MatLike:
+    frame = np.full((SCREEN_SIZE, SCREEN_SIZE, 3), Color.BROWN.value, dtype=np.uint8)
+
+    # draw lines
+    for i in range(GRID_SIZE):
+        start = HALF_CELL_SIZE
+        end = SCREEN_SIZE - HALF_CELL_SIZE
+        height = i * CELL_SIZE + HALF_CELL_SIZE
+        frame = cv2.line(frame, (start, height), (end, height), Color.BLACK.value, 1)
+        frame = cv2.line(frame, (height, start), (height, end), Color.BLACK.value, 1)
+
+    # draw hoshis
+    for x in HOSHIS:
+        for y in HOSHIS:
+            frame = cv2.circle(
+                frame,
+                (HALF_CELL_SIZE + x * CELL_SIZE, HALF_CELL_SIZE + y * CELL_SIZE),
+                int(CELL_SIZE * 0.1),
+                Color.BLACK.value,
+                -1,
+            )
+    return frame
+
+
+def add_stones_to_visual(frame, board: list[list[Cell]]) -> None:
+    for col in range(GRID_SIZE):
+        for row in range(GRID_SIZE):
+            cell = board[col][row].value
+            if cell == 1:
+                color = Color.BLACK.value
+            elif cell == 2:
+                color = Color.WHITE.value
+            else:
+                color = None
+
+            if color:
+                frame = cv2.circle(
+                    frame,
+                    (
+                        HALF_CELL_SIZE + CELL_SIZE * row,
+                        HALF_CELL_SIZE + CELL_SIZE * col,
+                    ),
+                    HALF_CELL_SIZE,
+                    color,
+                    -1,
+                )
+    return frame
+
+
+def diff_between_boards(current: list[list[Cell]], new: list[Cell]) -> list:
+    diff = []
+    for i in range(len(new)):
+        col = i // GRID_SIZE
+        row = i % GRID_SIZE
+        c_cell = current[col][row]
+        n_cell = new[i]
+
+        if c_cell != n_cell:
+            diff.append({"position": (row, col), "current": c_cell, "new": n_cell})
+
+    return diff
+
+
 def main():
     logger = get_color_logger()
     model = StoneClassifactionModel()
     model.load_state_dict(torch.load(PATH, weights_only=True))
+
+    with open("weights/random_forest_model.pkl", "rb") as file:
+        clf = pickle.load(file)
 
     cap = cv2.VideoCapture(0)
 
@@ -121,15 +197,15 @@ def main():
     cv2.setMouseCallback("Default", default_mouse_callback)
     cv2.namedWindow("Transformed")
 
-    corners = setup_corners(cap)
+    corners = [[449, 76], [1371, 45], [1510, 924], [383, 977]]
+    # corners = setup_corners(cap)
+    logger.debug(corners)
 
-    threshold = 0.01
-    moving_average = None
-    last_img = None
-    high_movement = False
+    visual_board = base_visual_board()
 
-    percentage_changes = []
-
+    last_results = []
+    changelog = []
+    game = Game()
     while True:
         key = cv2.waitKey(1) & 0xFF
         if key == ord("q"):
@@ -139,37 +215,83 @@ def main():
         img = transform_frame(frame, corners)
         img = blur_and_sharpen(img)
 
-        if last_img is None:
-            last_img = img
+        results = classify_all_cells(clf, img)
+        last_results.append(results)
+
+        visual = add_stones_to_visual(visual_board.copy(), game.board)
+        complete = np.hstack((img, visual))
+        cv2.imshow("Complete", complete)
+
+        if len(last_results) < 15:
             continue
+        last_results.pop(0)
 
-        percent_changed = percentage_pixel_changed(last_img, img)
-        percentage_changes.append(percent_changed)
+        current_player, opponent_player = game.player_colors()
 
-        if len(percentage_changes) == AMOUNT_FRAMES_MOVING_AVERAGE:
-            moving_average = sum(percentage_changes) / AMOUNT_FRAMES_MOVING_AVERAGE
-            percentage_changes.pop(0)
+        if all(r == results for r in last_results):
+            changes = diff_between_boards(game.board, results)
+            if not changes:
+                continue
 
-        if not moving_average:
-            continue
+            changelog += changes
 
-        # High movement
-        if percent_changed > threshold and percent_changed > moving_average:
-            logger.debug("High Movement")
-            high_movement = True
+            # single new move
+            if (
+                len(changes) == 1
+                and changes[0]["current"] == 0
+                and changes[0]["new"] == current_player
+            ):
+                position = changes[0]["position"]
+                if game.is_empty(position):
+                    logger.info(f"New Move: {changes[0]["new"]} - {position}")
+                    game.add_move(*position)
+                    continue
+                else:
+                    logger.fatal(f"Illegal Move: {changes[0]["new"]} - {position}")
 
-        # After movement
-        if percent_changed < threshold and moving_average > threshold and high_movement:
-            logger.info("End High Movement")
-            high_movement = False
-            results = classify_all_cells(model, img)
-            for i in range(GRID_SIZE):
-                logger.info(results[i * GRID_SIZE : i * GRID_SIZE + GRID_SIZE])
+            # two new moves (1 white, 1 black)
+            if (
+                len(changes) == 2
+                and all(d["current"] == 0 for d in changes)  # only additions
+                and set([changes[0]["new"], changes[1]["new"]]) == set([1, 2])
+            ):
+                logger.info("Two Moves")
+                changes = (
+                    changes if changes[0]["new"] == current_player else changes[::-1]
+                )
+                for c in changes:
+                    logger.info(f"Move: {c["new"]} - {c["position"]}")
+                    game.add_move(*c["position"])
+                continue
 
-            # if 1-2 stones added add -> add moves to game
-            # case multiple stones added -> run simple evaluation
-            # case add and remove stone -> run complex evaluation
-        last_img = img
+            # capture happended
+            add_moves = [c for c in changes if c["current"] == 0]
+            remove_moves = [c for c in changes if c["new"] == 0]
+            removed_colors = set([rm["current"] for rm in remove_moves])
+            if (
+                len(add_moves) == 1
+                and len(removed_colors) == 1
+                and remove_moves[0]["current"] == opponent_player
+            ):
+                new_move = add_moves[0]
+                assert new_move["new"] == current_player
+                logger.info(
+                    f"Move (Capture): {new_move["new"]} - {new_move["position"]}"
+                )
+                game.add_move(*new_move["position"])
+
+            # multiple moves added
+            if len(remove_moves) == 0:
+                # TODO katago evaluation
+                continue
+
+            # multiple stones added and removed could be:
+            # A -> capture and moves after
+            # B -> capture and stone was moved or wrongly recognized at the start
+            # C -> illegal moves
+            if len(add_moves) > 1 and len(remove_moves):
+                # TODO implement game state update due to not enough information
+                continue
 
     cap.release()
 

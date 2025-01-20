@@ -4,32 +4,14 @@ import sys
 from pathlib import Path
 
 from tqdm import tqdm
-from sgfmill import sgf
 
 sys.path.append(str(Path(__file__).parent.parent.parent))
 
-from src import KATAGO_PATH, SGF_PATH
-from src.utils.sgf_helper import convert_move_to_coordinate
+from src import KATAGO_PATH, SGF_PATH, DATA_PATH
+from src.utils.sgf_helper import get_moves
 
 
-def get_moves(path: Path) -> list[tuple[str, str]]:
-    with open(str(path), "rb") as f:
-        game = sgf.Sgf_game.from_bytes(f.read())
-
-    moves = []
-    for node in game.get_main_sequence():
-        player, move = node.get_move()
-        if not move:
-            continue
-
-        assert player, "No Player"
-
-        move_data = (player.upper(), convert_move_to_coordinate(*move))
-        moves.append(move_data)
-    return moves
-
-
-def analyse_position(process, data: dict) -> None:
+def send_position_into_analysis(process, data: dict) -> None:
     # katago analyse requires input as oneline
     data_string = json.dumps(data).replace("\n", "") + "\n"
     process.stdin.write(data_string)
@@ -68,7 +50,7 @@ def main():
             "boardYSize": 19,
             "analyzeTurns": [i for i in range(len(moves))],
         }
-        analyse_position(process, data)
+        send_position_into_analysis(process, data)
         results[path.name] = []
         total_moves += len(moves)
 
@@ -82,7 +64,7 @@ def main():
                 results[result["id"]].append(result)
                 break
 
-    with open("src/analysis/analysis_of_selected_games.json", "w") as f:
+    with open(DATA_PATH.joinpath("analysis_of_selected_games.json"), "w") as f:
         json.dump(results, f, indent=4)
 
     process.terminate()

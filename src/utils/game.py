@@ -40,14 +40,18 @@ class Game:
                 x, y = y, GRID_SIZE - 1 - x  # change due sgf coordinate order
                 self.add_move(x, y)
 
-    def add_move(self, x, y) -> None:
+    def player_colors(self):
         current_color, opponent_color = (
             (Cell.BLACK, Cell.WHITE),
             (Cell.WHITE, Cell.BLACK),
-        )[self.move % 2]
+        )[self.move & 1]
+        return current_color, opponent_color
 
+    def add_move(self, x, y) -> None:
         if not self.is_empty((x, y)):
             return
+
+        current_color, opponent_color = self.player_colors()
 
         board_after_capture = deepcopy(self.board)
         board_after_capture[y][x] = current_color
