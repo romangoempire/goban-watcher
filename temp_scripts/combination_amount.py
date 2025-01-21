@@ -1,3 +1,6 @@
+import matplotlib.pyplot as plt
+
+
 def get_amount_combinations(moves):
     move_amount = moves // 2
     if moves % 2 == 0:
@@ -23,5 +26,10 @@ def get_amount_combinations(moves):
     return combinations
 
 
-for i in range(1, 20):
-    print(f"Moves {i} \t {get_amount_combinations(i)}")
+amounts = [get_amount_combinations(i) for i in range(1, 20)]
+
+
+plt.bar([i for i in range(1, 20)], amounts)
+plt.yscale("log")
+plt.xticks([i for i in range(1, 20)])
+plt.savefig("graph.png")

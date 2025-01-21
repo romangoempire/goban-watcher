@@ -1,5 +1,6 @@
 requests
-pytest
+python-dotenv
+
 ipykernel
 
 opencv-python
@@ -19,4 +20,3 @@ tqdm
 
 pygame
 sgfmill
-python-dotenv

@@ -197,7 +197,7 @@ def main():
     cv2.setMouseCallback("Default", default_mouse_callback)
     cv2.namedWindow("Transformed")
 
-    corners = [[449, 76], [1371, 45], [1510, 924], [383, 977]]
+    corners = [[676, 202], [1431, 233], [1517, 939], [561, 903]]
     # corners = setup_corners(cap)
     logger.debug(corners)
 
@@ -219,7 +219,7 @@ def main():
         last_results.append(results)
 
         visual = add_stones_to_visual(visual_board.copy(), game.board)
-        complete = np.hstack((img, visual))
+        complete = np.hstack((img, visual))  # type: ignore #
         cv2.imshow("Complete", complete)
 
         if len(last_results) < 15:
@@ -281,16 +281,22 @@ def main():
                 game.add_move(*new_move["position"])
 
             # multiple moves added
-            if len(remove_moves) == 0:
+            if len(add_moves) > 1 and len(remove_moves) == 0:
+                logger.info(
+                    "Multiple new moves. Using katago to guess the correct sequence"
+                )
                 # TODO katago evaluation
                 continue
 
-            # multiple stones added and removed could be:
+            # Chaos:
             # A -> capture and moves after
             # B -> capture and stone was moved or wrongly recognized at the start
             # C -> illegal moves
             if len(add_moves) > 1 and len(remove_moves):
                 # TODO implement game state update due to not enough information
+                logger.warning(
+                    "Game State changed drastically! Unable to extract sequence and therefore updating the board as whole to the new state"
+                )
                 continue
 
     cap.release()
