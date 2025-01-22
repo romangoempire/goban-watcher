@@ -197,8 +197,8 @@ def main():
     cv2.setMouseCallback("Default", default_mouse_callback)
     cv2.namedWindow("Transformed")
 
-    corners = [[676, 202], [1431, 233], [1517, 939], [561, 903]]
-    # corners = setup_corners(cap)
+    # corners = [[676, 202], [1431, 233], [1517, 939], [561, 903]]
+    corners = setup_corners(cap)
     logger.debug(corners)
 
     visual_board = base_visual_board()
@@ -297,6 +297,10 @@ def main():
                 logger.warning(
                     "Game State changed drastically! Unable to extract sequence and therefore updating the board as whole to the new state"
                 )
+                game.board = [
+                    results[i * GRID_SIZE : i * GRID_SIZE + GRID_SIZE]
+                    for i in range(GRID_SIZE)
+                ]
                 continue
 
     cap.release()

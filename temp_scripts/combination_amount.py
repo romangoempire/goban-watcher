@@ -31,5 +31,8 @@ amounts = [get_amount_combinations(i) for i in range(1, 20)]
 
 plt.bar([i for i in range(1, 20)], amounts)
 plt.yscale("log")
+plt.xlabel("Missing moves")
+plt.ylabel("Amount varations")
+plt.title("Amount of variations for amount of missing moves")
 plt.xticks([i for i in range(1, 20)])
 plt.savefig("graph.png")
