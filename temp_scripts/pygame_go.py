@@ -1,16 +1,14 @@
-import pygame
-
 import sys
-
 from pathlib import Path
-from icecream import ic
+
+import pygame
 
 sys.path.append(str(Path(__file__).parent.parent))
 
-from src.utils.game import Game
+from src import CELL_SIZE, SCREEN_SIZE
 from src.utils.colors import Color
-from src.utils.visualize import game_add_grid, add_stones
-from src import CELL_SIZE, GRID_SIZE, SCREEN_SIZE
+from src.utils.game import Game
+from src.utils.visualize import add_stones, game_add_grid
 
 
 def xy(mouse) -> list:
@@ -35,7 +33,7 @@ def main():
             if event.type == pygame.KEYDOWN and event.key == pygame.K_r:
                 game.reset()
 
-        screen.fill(Color.BROWN.value)
+        screen.fill([245, 143, 41])
         screen = game_add_grid(screen)
         screen = add_stones(screen, game)
 

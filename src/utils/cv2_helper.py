@@ -1,9 +1,10 @@
 from copy import deepcopy
+
 import cv2
 import numpy as np
 from cv2.typing import MatLike
 
-from src import SCREEN_SIZE, CELL_SIZE
+from src import CELL_SIZE, SCREEN_SIZE
 from src.utils.colors import Color
 
 

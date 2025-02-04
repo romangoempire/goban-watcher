@@ -1,16 +1,10 @@
-import sys
+import pickle
 import time
 from copy import deepcopy
-from pathlib import Path
-import pickle
 
 import cv2
 import numpy as np
-import torch
-import torchvision.transforms as transforms
 from cv2.typing import MatLike
-
-sys.path.append(str(Path(__file__).parent.parent))
 
 from src import (
     CELL_SIZE,
@@ -20,7 +14,6 @@ from src import (
     HOSHIS,
     SCREEN_SIZE,
 )
-from src.stone_classification import StoneClassifactionModel
 from src.utils.colors import Color
 from src.utils.custom_logger import get_color_logger
 from src.utils.cv2_helper import (
@@ -31,17 +24,7 @@ from src.utils.cv2_helper import (
 )
 from src.utils.game import Cell, Game
 
-PATH = "weights/250107171701-classification_weights.pth"
-
-
-TRANSFORM = transforms.Compose(
-    [
-        transforms.ToPILImage(),
-        transforms.Resize((CELL_SIZE, CELL_SIZE)),
-        transforms.ToTensor(),
-        transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
-    ]
-)
+MODEL_PATH = "weights/random_forest_model.pkl"
 
 
 def default_mouse_callback(event, x, y, flags, param):
@@ -89,6 +72,12 @@ def setup_corners(cap: cv2.VideoCapture) -> list[list[int]]:
         cv2.imshow("Transformed", display_transformed_frame)
     cv2.destroyAllWindows()
     return corners
+
+
+def load_model():
+    with open(MODEL_PATH, "rb") as file:
+        model = pickle.load(file)
+    return model
 
 
 def classify_all_cells(model, frame: MatLike) -> list[Cell]:
@@ -182,11 +171,8 @@ def diff_between_boards(current: list[list[Cell]], new: list[Cell]) -> list:
 
 def main():
     logger = get_color_logger()
-    model = StoneClassifactionModel()
-    model.load_state_dict(torch.load(PATH, weights_only=True))
 
-    with open("weights/random_forest_model.pkl", "rb") as file:
-        clf = pickle.load(file)
+    model = load_model()
 
     cap = cv2.VideoCapture(0)
 
@@ -206,6 +192,7 @@ def main():
     last_results = []
     changelog = []
     game = Game()
+
     while True:
         key = cv2.waitKey(1) & 0xFF
         if key == ord("q"):
@@ -215,7 +202,7 @@ def main():
         img = transform_frame(frame, corners)
         img = blur_and_sharpen(img)
 
-        results = classify_all_cells(clf, img)
+        results = classify_all_cells(model, img)
         last_results.append(results)
 
         visual = add_stones_to_visual(visual_board.copy(), game.board)
@@ -226,7 +213,7 @@ def main():
             continue
         last_results.pop(0)
 
-        current_player, opponent_player = game.player_colors()
+        current_player, opponent_player = game.get_player_colors()
 
         if all(r == results for r in last_results):
             changes = diff_between_boards(game.board, results)

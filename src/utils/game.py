@@ -15,7 +15,6 @@ class Cell(IntEnum):
 class Game:
     def __init__(self):
         self.move: int = 0
-        self.is_ko: bool = False
         self.captured_black: int = 0
         self.captured_white: int = 0
         self.board_history: list = []
@@ -23,37 +22,28 @@ class Game:
 
     def reset(self) -> None:
         self.move: int = 0
-        self.is_ko: bool = False
         self.captured_black: int = 0
         self.captured_white: int = 0
         self.board_history: list = []
         self.board = [[Cell.EMPTY for _ in range(GRID_SIZE)] for _ in range(GRID_SIZE)]
 
-    def add_sgf(self, filename: Path) -> None:
-        with open(filename, "rb") as f:
-            main_sequence = sgf.Sgf_game.from_bytes(f.read()).get_main_sequence()
-
-        for node in main_sequence:
-            _, move = node.get_move()
-            if move:
-                x, y = move
-                x, y = y, GRID_SIZE - 1 - x  # change due sgf coordinate order
-                self.add_move(x, y)
-
-    def player_colors(self):
-        current_color, opponent_color = (
+    def get_player_colors(self):
+        current_color, opponent_color = [
             (Cell.BLACK, Cell.WHITE),
             (Cell.WHITE, Cell.BLACK),
-        )[self.move & 1]
+        ][self.move & 1]
         return current_color, opponent_color
 
     def add_move(self, x, y) -> None:
-        if not self.is_empty((x, y)):
-            return
+        assert self.is_empty((x, y)), "where is a stone on this coordinate"
 
-        current_color, opponent_color = self.player_colors()
+        current_color, opponent_color = self.get_player_colors()
 
+        # board is modified and it might be that the modification are
+        # not valid and therefore the original board should stay the same
         board_after_capture = deepcopy(self.board)
+
+        # add new stone to the board
         board_after_capture[y][x] = current_color
 
         neighbors = self.get_neighbors(x, y)
@@ -107,12 +97,16 @@ class Game:
     def get_neighbors(x, y) -> list:
         neighbors = []
 
+        # left
         if x > 0:
             neighbors.append((x - 1, y))
+        # right
         if x < GRID_SIZE - 1:
             neighbors.append((x + 1, y))
+        # top
         if y > 0:
             neighbors.append((x, y - 1))
+        # bottom
         if y < GRID_SIZE - 1:
             neighbors.append((x, y + 1))
         return neighbors
@@ -129,7 +123,7 @@ class Game:
         x, y = coordinates
         return board[y][x] == Cell.EMPTY.value
 
-    def get_liberties(self, x, y, opponent_color: Cell, board=None) -> int:
+    def get_liberties(self, x, y, opponent_color: Cell, board) -> int:
         if not board:
             board = self.board
         neighbors = self.get_neighbors(x, y)
@@ -138,3 +132,14 @@ class Game:
             if self.get_color(neighbor, board) != opponent_color:
                 count += 1
         return count
+
+    def add_sgf(self, filename: Path) -> None:
+        with open(filename, "rb") as f:
+            main_sequence = sgf.Sgf_game.from_bytes(f.read()).get_main_sequence()
+
+        for node in main_sequence:
+            _, move = node.get_move()
+            if move:
+                x, y = move
+                x, y = y, GRID_SIZE - 1 - x  # change due sgf coordinate order
+                self.add_move(x, y)
