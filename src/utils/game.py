@@ -1,6 +1,7 @@
 from copy import deepcopy
 from enum import IntEnum, auto
 from pathlib import Path
+
 from sgfmill import sgf
 
 from src import GRID_SIZE
@@ -19,6 +20,7 @@ class Game:
         self.captured_white: int = 0
         self.board_history: list = []
         self.board = [[Cell.EMPTY for _ in range(GRID_SIZE)] for _ in range(GRID_SIZE)]
+        self.neighbors = self.get_neighbors()
 
     def reset(self) -> None:
         self.move: int = 0
@@ -27,37 +29,36 @@ class Game:
         self.board_history: list = []
         self.board = [[Cell.EMPTY for _ in range(GRID_SIZE)] for _ in range(GRID_SIZE)]
 
-    def get_player_colors(self):
-        current_color, opponent_color = [
+    def player_colors(self):
+        current_color, opponent_color = (
             (Cell.BLACK, Cell.WHITE),
             (Cell.WHITE, Cell.BLACK),
-        ][self.move & 1]
+        )[self.move & 1]
         return current_color, opponent_color
 
     def add_move(self, x, y) -> None:
-        assert self.is_empty((x, y)), "where is a stone on this coordinate"
+        assert self.is_empty((x, y)), "Position occupied"
 
-        current_color, opponent_color = self.get_player_colors()
+        current_color, opponent_color = self.player_colors()
 
-        # board is modified and it might be that the modification are
-        # not valid and therefore the original board should stay the same
+        # create copy since changes might be invalid and need to be rolled back
         board_after_capture = deepcopy(self.board)
 
-        # add new stone to the board
+        # add placed move
         board_after_capture[y][x] = current_color
 
-        neighbors = self.get_neighbors(x, y)
-
         # iterate over each neighbor and check if it has liberties
+        neighbors = self.neighbors[y][x]
         for cell_x, cell_y in neighbors:
             if board_after_capture[cell_y][cell_x] != opponent_color:
                 continue
 
-            queue = set(self.get_neighbors(cell_x, cell_y))
+            queue = set(self.neighbors[cell_y][cell_x])
             visited = {(cell_x, cell_y)}
 
             while queue:
                 cell = queue.pop()
+
                 # stones have at least one liberty and therefore are not captured
                 if self.is_empty(cell, board_after_capture):
                     visited = set()
@@ -69,9 +70,7 @@ class Game:
                 # check if the cell is opponent
                 if self.get_color(cell, board_after_capture) == opponent_color:
                     visited.add(cell)
-                    # add all neighbors to queue
-                    for neighbor in self.get_neighbors(*cell):
-                        queue.add(neighbor)
+                    queue.update(self.neighbors[cell[1]][cell[0]])
 
             # visited cells have no liberties and are removed
             for cell in visited:
@@ -94,22 +93,27 @@ class Game:
         self.board_history.append(board_after_capture)
 
     @staticmethod
-    def get_neighbors(x, y) -> list:
-        neighbors = []
-
-        # left
-        if x > 0:
-            neighbors.append((x - 1, y))
-        # right
-        if x < GRID_SIZE - 1:
-            neighbors.append((x + 1, y))
-        # top
-        if y > 0:
-            neighbors.append((x, y - 1))
-        # bottom
-        if y < GRID_SIZE - 1:
-            neighbors.append((x, y + 1))
-        return neighbors
+    def get_neighbors() -> list:
+        lookup = []
+        for y in range(GRID_SIZE):
+            neighbor_row = []
+            for x in range(GRID_SIZE):
+                neighbors = []
+                # left
+                if x > 0:
+                    neighbors.append((x - 1, y))
+                # right
+                if x < GRID_SIZE - 1:
+                    neighbors.append((x + 1, y))
+                # top
+                if y > 0:
+                    neighbors.append((x, y - 1))
+                # bottom
+                if y < GRID_SIZE - 1:
+                    neighbors.append((x, y + 1))
+                neighbor_row.append(neighbors)
+            lookup.append(neighbor_row)
+        return lookup
 
     def get_color(self, coordinates: tuple[int, int], board=None) -> Cell:
         if not board:
@@ -123,10 +127,10 @@ class Game:
         x, y = coordinates
         return board[y][x] == Cell.EMPTY.value
 
-    def get_liberties(self, x, y, opponent_color: Cell, board) -> int:
+    def get_liberties(self, x, y, opponent_color: Cell, board=None) -> int:
         if not board:
             board = self.board
-        neighbors = self.get_neighbors(x, y)
+        neighbors = self.neighbors[y][x]
         count = 0
         for neighbor in neighbors:
             if self.get_color(neighbor, board) != opponent_color:

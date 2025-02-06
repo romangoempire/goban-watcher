@@ -7,7 +7,7 @@ from tqdm import tqdm
 
 sys.path.append(str(Path(__file__).parent.parent.parent))
 
-from src import KATAGO_PATH, SGF_PATH, DATA_PATH
+from src import DATA_PATH, KATAGO_PATH, SGF_PATH
 from src.utils.sgf_helper import get_moves
 
 
