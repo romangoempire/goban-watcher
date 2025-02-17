@@ -1,10 +1,20 @@
 from pathlib import Path
 from sgfmill import sgf
+from src.utils.game import Cell
+
+X_AXIS = "ABCDEFGHJKLMNOPQRST"
 
 
 def convert_move_to_coordinate(x: int, y: int) -> str:
-    x_axis = "ABCDEFGHJKLMNOPQRST"
-    return f"{x_axis[y]}{x + 1}"
+    return f"{X_AXIS[y]}{x + 1}"
+
+
+def convert_coordinate_to_move(coordinate: str) -> tuple[int, int]:
+    return X_AXIS.index(coordinate[0]), int(coordinate[1:]) - 1
+
+
+def convert_cell_to_player_color(cell: Cell) -> str:
+    return "B" if cell == Cell.BLACK else "W"
 
 
 def opponent(current: str) -> str:

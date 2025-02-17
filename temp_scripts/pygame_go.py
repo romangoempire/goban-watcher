@@ -6,7 +6,6 @@ import pygame
 sys.path.append(str(Path(__file__).parent.parent))
 
 from src import CELL_SIZE, SCREEN_SIZE
-from src.utils.colors import Color
 from src.utils.game import Game
 from src.utils.visualize import add_stones, game_add_grid
 

@@ -1,13 +1,11 @@
-requests
-python-dotenv
-
 ipykernel
+jupyter
 
-opencv-python
 numpy
 polars
 pandas
 
+opencv-python
 torch
 torchvision
 scikit-learn

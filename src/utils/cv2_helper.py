@@ -34,7 +34,7 @@ def blur_and_sharpen(img: MatLike) -> MatLike:
     return cv2.filter2D(blurred_image, -1, kernel)
 
 
-def transform_frame(frame: MatLike, corners: list) -> MatLike:
+def convert_to_top_down(frame: MatLike, corners: list) -> MatLike:
     matrix = cv2.getPerspectiveTransform(
         np.float32(corners),
         np.float32(

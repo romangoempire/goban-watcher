@@ -4,10 +4,8 @@ from src import ROOT_DIR, SGF_PATH
 from src.utils.game import Game
 from src.utils.visualize import save_png
 
-sgf_dir = SGF_PATH.joinpath("selected_sgf")
-
 for i in range(1, 21):
-    with open(sgf_dir.joinpath(f"{i}.sgf"), "rb") as f:
+    with open(SGF_PATH.joinpath(f"{i}.sgf"), "rb") as f:
         sgf_game = sgf.Sgf_game.from_bytes(f.read())
 
     game = Game()

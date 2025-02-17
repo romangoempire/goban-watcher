@@ -19,7 +19,7 @@ class Game:
         self.captured_black: int = 0
         self.captured_white: int = 0
         self.board_history: list = []
-        self.board = [[Cell.EMPTY for _ in range(GRID_SIZE)] for _ in range(GRID_SIZE)]
+        self.board: list[list[Cell]] = self._initialize_board()
         self.neighbors = self.get_neighbors()
 
     def reset(self) -> None:
@@ -27,73 +27,87 @@ class Game:
         self.captured_black: int = 0
         self.captured_white: int = 0
         self.board_history: list = []
-        self.board = [[Cell.EMPTY for _ in range(GRID_SIZE)] for _ in range(GRID_SIZE)]
+        self.board = self._initialize_board()
 
-    def player_colors(self):
+    @staticmethod
+    def _initialize_board() -> list[list[Cell]]:
+        return [[Cell.EMPTY for _ in range(GRID_SIZE)] for _ in range(GRID_SIZE)]
+
+    def get_colors_current_and_opponent_player(self) -> tuple[Cell, Cell]:
+        """Returns the color of the current player and the opponent based on self.move."""
         current_color, opponent_color = (
             (Cell.BLACK, Cell.WHITE),
             (Cell.WHITE, Cell.BLACK),
         )[self.move & 1]
         return current_color, opponent_color
 
-    def add_move(self, x, y) -> None:
+    def add_move(self, x: int, y: int) -> None:
+        """Adds Cell at position x, y for the player whose turn it is."""
         assert self.is_empty((x, y)), "Position occupied"
 
-        current_color, opponent_color = self.player_colors()
+        current_color, opponent_color = self.get_colors_current_and_opponent_player()
 
-        # create copy since changes might be invalid and need to be rolled back
+        # create copy since move might be invalid and should not change the current boards
         board_after_capture = deepcopy(self.board)
 
-        # add placed move
+        # add move
         board_after_capture[y][x] = current_color
 
         # iterate over each neighbor and check if it has liberties
         neighbors = self.neighbors[y][x]
-        for cell_x, cell_y in neighbors:
-            if board_after_capture[cell_y][cell_x] != opponent_color:
+        for neighbor_x, neighbor_y in neighbors:
+            # only check liberties for opponent
+            if board_after_capture[neighbor_y][neighbor_x] != opponent_color:
                 continue
 
-            queue = set(self.neighbors[cell_y][cell_x])
-            visited = {(cell_x, cell_y)}
+            queue = {(neighbor_x, neighbor_y)}
+            visited = set()
 
             while queue:
                 cell = queue.pop()
 
-                # stones have at least one liberty and therefore are not captured
+                # Pass the board copy since changes could have happen before
                 if self.is_empty(cell, board_after_capture):
+                    # stone and all connected stones have liberty => not captured
                     visited = set()
                     break
 
                 if cell in visited:
                     continue
 
-                # check if the cell is opponent
+                # stone has no liberty, but might be connected and the connected stone might have liberties
                 if self.get_color(cell, board_after_capture) == opponent_color:
                     visited.add(cell)
-                    queue.update(self.neighbors[cell[1]][cell[0]])
+                    cell_x, cell_y = cell
+                    queue.update(self.neighbors[cell_y][cell_x])
 
             # visited cells have no liberties and are removed
             for cell in visited:
-                board_after_capture[cell[1]][cell[0]] = Cell.EMPTY
                 if opponent_color == Cell.WHITE:
                     self.captured_white += 1
                 else:
                     self.captured_black += 1
+                cell_x, cell_y = cell
+                board_after_capture[cell_y][cell_x] = Cell.EMPTY
 
+        # stone does not capture any stones and has no liberties afterwards
         assert (
             self.get_liberties(x, y, opponent_color, board_after_capture) > 0
         ), "Move would lead to suicide"
+
         if len(self.board_history) > 2:
+            # board position repeats => ko rule
             assert (
                 board_after_capture != self.board_history[-2]
             ), "Move would lead to invalid repetition (ko)"
 
-        self.board = board_after_capture
         self.move += 1
+        self.board = board_after_capture
         self.board_history.append(board_after_capture)
 
     @staticmethod
     def get_neighbors() -> list:
+        """Returns lookup table of neighbors for each x, y."""
         lookup = []
         for y in range(GRID_SIZE):
             neighbor_row = []
@@ -116,20 +130,17 @@ class Game:
         return lookup
 
     def get_color(self, coordinates: tuple[int, int], board=None) -> Cell:
-        if not board:
-            board = self.board
+        board = self.board if board is None else board
         x, y = coordinates
         return board[y][x]
 
     def is_empty(self, coordinates: tuple[int, int], board=None) -> bool:
-        if not board:
-            board = self.board
+        board = self.board if board is None else board
         x, y = coordinates
         return board[y][x] == Cell.EMPTY.value
 
     def get_liberties(self, x, y, opponent_color: Cell, board=None) -> int:
-        if not board:
-            board = self.board
+        board = self.board if board is None else board
         neighbors = self.neighbors[y][x]
         count = 0
         for neighbor in neighbors:
@@ -138,6 +149,7 @@ class Game:
         return count
 
     def add_sgf(self, filename: Path) -> None:
+        """Plays out complete sgf by adding each move."""
         with open(filename, "rb") as f:
             main_sequence = sgf.Sgf_game.from_bytes(f.read()).get_main_sequence()
 

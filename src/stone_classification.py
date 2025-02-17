@@ -1,3 +1,5 @@
+import pickle
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
@@ -18,3 +20,15 @@ class StoneClassifactionModel(nn.Module):
         x = F.relu(self.fc1(x))
         x = self.fc2(x)
         return x
+
+
+def load_rf(path):
+    with open(path, "rb") as file:
+        model = pickle.load(file)
+    return model
+
+
+def load_cnn(path) -> StoneClassifactionModel:
+    model = StoneClassifactionModel()
+    model.load_state_dict(torch.load(path))
+    return model
