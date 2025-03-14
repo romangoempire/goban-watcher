@@ -11,7 +11,6 @@ from src import (
     GRID_SIZE,
     HALF_CELL_SIZE,
     HOSHIS,
-    KATAGO_PATH,
     SCREEN_SIZE,
 )
 from src.stone_classification import load_rf

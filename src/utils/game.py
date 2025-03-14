@@ -55,6 +55,7 @@ class Game:
 
         # iterate over each neighbor and check if it has liberties
         neighbors = self.neighbors[y][x]
+        captures = 0
         for neighbor_x, neighbor_y in neighbors:
             # only check liberties for opponent
             if board_after_capture[neighbor_y][neighbor_x] != opponent_color:
@@ -83,23 +84,25 @@ class Game:
 
             # visited cells have no liberties and are removed
             for cell in visited:
-                if opponent_color == Cell.WHITE:
-                    self.captured_white += 1
-                else:
-                    self.captured_black += 1
+                captures += 1
                 cell_x, cell_y = cell
                 board_after_capture[cell_y][cell_x] = Cell.EMPTY
 
         # stone does not capture any stones and has no liberties afterwards
-        assert (
-            self.get_liberties(x, y, opponent_color, board_after_capture) > 0
-        ), "Move would lead to suicide"
+        assert self.get_liberties(x, y, opponent_color, board_after_capture) > 0, (
+            "Move would lead to suicide"
+        )
 
         if len(self.board_history) > 2:
             # board position repeats => ko rule
-            assert (
-                board_after_capture != self.board_history[-2]
-            ), "Move would lead to invalid repetition (ko)"
+            assert board_after_capture != self.board_history[-2], (
+                "Move would lead to invalid repetition (ko)"
+            )
+
+        if opponent_color == Cell.WHITE:
+            self.captured_white += captures
+        elif opponent_color == Cell.BLACK:
+            self.captured_black += captures
 
         self.move += 1
         self.board = board_after_capture
