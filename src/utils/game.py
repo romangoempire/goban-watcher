@@ -57,41 +57,22 @@ class Game:
         neighbors = self.neighbors[y][x]
         captures = 0
         for neighbor_x, neighbor_y in neighbors:
-            # only check liberties for opponent
-            if board_after_capture[neighbor_y][neighbor_x] != opponent_color:
+            group, liberties = self.get_group_and_liberties(
+                neighbor_x, neighbor_y, board_after_capture
+            )
+
+            if liberties > 0:
                 continue
 
-            queue = {(neighbor_x, neighbor_y)}
-            visited = set()
-
-            while queue:
-                cell = queue.pop()
-
-                # Pass the board copy since changes could have happen before
-                if self.is_empty(cell, board_after_capture):
-                    # stone and all connected stones have liberty => not captured
-                    visited = set()
-                    break
-
-                if cell in visited:
-                    continue
-
-                # stone has no liberty, but might be connected and the connected stone might have liberties
-                if self.get_color(cell, board_after_capture) == opponent_color:
-                    visited.add(cell)
-                    cell_x, cell_y = cell
-                    queue.update(self.neighbors[cell_y][cell_x])
-
-            # visited cells have no liberties and are removed
-            for cell in visited:
-                captures += 1
+            captures += len(group)
+            for cell in group:
                 cell_x, cell_y = cell
                 board_after_capture[cell_y][cell_x] = Cell.EMPTY
 
         # stone does not capture any stones and has no liberties afterwards
-        assert self.get_liberties(x, y, opponent_color, board_after_capture) > 0, (
-            "Move would lead to suicide"
-        )
+        _, liberties = self.get_group_and_liberties(x, y, board_after_capture)
+
+        assert liberties > 0, "Move would lead to suicide"
 
         if len(self.board_history) > 2:
             # board position repeats => ko rule
@@ -107,6 +88,33 @@ class Game:
         self.move += 1
         self.board = board_after_capture
         self.board_history.append(board_after_capture)
+
+    def get_group_and_liberties(
+        self, x: int, y: int, board
+    ) -> tuple[list[tuple[int, int]], int]:
+        color = self.get_color((x, y), board)
+
+        queue = set()
+        for neighbor in self.neighbors[y][x]:
+            queue.add(neighbor)
+
+        group = {(x, y)}
+        liberties = 0
+
+        while queue:
+            cell = queue.pop()
+
+            if cell in group:
+                continue
+
+            if self.is_empty((cell), board):
+                liberties += 1
+
+            if self.get_color(cell, board) == color:
+                group.add(cell)
+                cell_x, cell_y = cell
+                queue.update(self.neighbors[cell_y][cell_x])
+        return list(group), liberties
 
     @staticmethod
     def get_neighbors() -> list:
@@ -141,15 +149,6 @@ class Game:
         board = self.board if board is None else board
         x, y = coordinates
         return board[y][x] == Cell.EMPTY.value
-
-    def get_liberties(self, x, y, opponent_color: Cell, board=None) -> int:
-        board = self.board if board is None else board
-        neighbors = self.neighbors[y][x]
-        count = 0
-        for neighbor in neighbors:
-            if self.get_color(neighbor, board) != opponent_color:
-                count += 1
-        return count
 
     def add_sgf(self, filename: Path) -> None:
         """Plays out complete sgf by adding each move."""
