@@ -170,7 +170,7 @@ def main() -> None:
     logger = get_color_logger()
 
     # TODO EDIT CAMERA ID
-    cap = cv2.VideoCapture(2)
+    cap = cv2.VideoCapture(0)
     if not cap.isOpened():
         exit()
 
