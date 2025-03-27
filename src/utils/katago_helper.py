@@ -7,13 +7,13 @@ from src import GRID_SIZE, KATAGO_PATH, KOMI
 from src.utils.game import Cell
 from src.utils.sgf_helper import (
     convert_cell_to_player_color,
-    convert_move_to_coordinate,
     convert_coordinate_to_move,
+    convert_move_to_coordinate,
     opponent,
 )
 
 
-def send_position_into_analysis(process, data: dict) -> None:
+def send_position_to_katago(process, data: dict) -> None:
     """Sends game position to katago."""
     # must be one line string
     data_string = json.dumps(data).replace("\n", "") + "\n"
@@ -63,7 +63,7 @@ def get_best_variation(
             "boardYSize": GRID_SIZE,
             "analyzeTurns": analyse_turns,
         }
-        send_position_into_analysis(process, data)
+        send_position_to_katago(process, data)
 
     results = {str(i): [] for i in range(len(variations))}
     for i in range(amount_moves * len(variations)):

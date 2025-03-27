@@ -25,7 +25,6 @@ from src.utils.cv2_helper import (
 from src.utils.game import Cell, Game
 from src.utils.katago_helper import get_best_variation, start_katago_process
 
-
 RF_PATH = "weights/random_forest_model.pkl"
 
 

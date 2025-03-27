@@ -1,5 +1,7 @@
 from pathlib import Path
+
 from sgfmill import sgf
+
 from src.utils.game import Cell
 
 X_AXIS = "ABCDEFGHJKLMNOPQRST"
