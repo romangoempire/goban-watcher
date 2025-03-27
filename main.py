@@ -25,6 +25,7 @@ from src.utils.cv2_helper import (
 from src.utils.game import Cell, Game
 from src.utils.katago_helper import get_best_variation, start_katago_process
 
+
 RF_PATH = "weights/random_forest_model.pkl"
 
 
@@ -169,7 +170,8 @@ def diff_between_boards(current_board: list[list[Cell]], new_board: list[Cell]) 
 def main() -> None:
     logger = get_color_logger()
 
-    cap = cv2.VideoCapture(0)
+    # TODO EDIT CAMERA ID
+    cap = cv2.VideoCapture(2)
     if not cap.isOpened():
         exit()
 
@@ -177,7 +179,9 @@ def main() -> None:
     cv2.setMouseCallback("Default", default_mouse_callback)
     cv2.namedWindow("Transformed")
 
-    # corners = [[676, 202], [1431, 233], [1517, 939], [561, 903]]
+    # if the program is restarted a lot it might be easier
+    # to have the corners already setup
+    # corners = [[521, 338], [1264, 332], [1382, 1049], [331, 1044]]
     corners = setup_corners(cap)
     logger.debug(corners)
 
@@ -230,11 +234,11 @@ def main() -> None:
             ):
                 position = changes[0]["position"]
                 if game.is_empty(position):
-                    logger.info(f"New Move: {changes[0]["new"]} - {position}")
+                    logger.info(f"New Move: {changes[0]['new']} - {position}")
                     game.add_move(*position)
                     continue
                 else:
-                    logger.fatal(f"Illegal Move: {changes[0]["new"]} - {position}")
+                    logger.fatal(f"Illegal Move: {changes[0]['new']} - {position}")
 
             # two new moves
             if (
@@ -248,7 +252,7 @@ def main() -> None:
                     changes if changes[0]["new"] == current_player else changes[::-1]
                 )
                 for c in changes:
-                    logger.info(f"Move: {c["new"]} - {c["position"]}")
+                    logger.info(f"Move: {c['new']} - {c['position']}")
                     game.add_move(*c["position"])
                 continue
 
@@ -258,24 +262,39 @@ def main() -> None:
             removed_colors = set([rm["current"] for rm in remove_moves])
             if (
                 len(add_moves) == 1
+                and add_moves[0]["new"] == current_player
                 and len(removed_colors) == 1
                 and remove_moves[0]["current"] == opponent_player
             ):
                 new_move = add_moves[0]
-                assert new_move["new"] == current_player
                 logger.info(
-                    f"Move (Capture): {new_move["new"]} - {new_move["position"]}"
+                    f"Move (Capture): {new_move['new']} - {new_move['position']}"
                 )
                 game.add_move(*new_move["position"])
 
             # multiple moves added
-            if len(add_moves) > 1 and len(remove_moves) == 0:
+            are_valid_additions = all(c["current"] == Cell.EMPTY for c in changes)
+            amount_player_stones = len(
+                [c["new"] for c in changes if c["new"] == current_player]
+            )
+            amount_opponent_stones = len(
+                [c["new"] for c in changes if c["new"] == opponent_player]
+            )
+            valid_amounts = amount_player_stones - amount_opponent_stones in [0, 1]
+
+            if (
+                are_valid_additions
+                and valid_amounts
+                and len(add_moves) > 1
+                and len(add_moves) < 8  # More moves == more variation -> exponential
+                and len(remove_moves) == 0
+            ):
                 logger.info(
                     "Multiple new moves. Using katago to guess the correct sequence"
                 )
                 new_moves = []
                 for new_move in add_moves:
-                    new_moves.append((new_move["new", new_move["position"]]))
+                    new_moves.append((new_move["new"], new_move["position"]))
 
                 sequence = get_best_variation(
                     katago_process,
@@ -293,7 +312,7 @@ def main() -> None:
             # A -> capture and moves after
             # B -> capture and stone was moved or wrongly recognized at the start
             # C -> illegal moves
-            if len(add_moves) > 1 and len(remove_moves):
+            if len(add_moves) > 0 or len(remove_moves) > 0:
                 logger.warning(
                     "Game State changed drastically! Unable to extract sequence and therefore updating the board as whole to the new state"
                 )
@@ -302,7 +321,9 @@ def main() -> None:
                     for i in range(GRID_SIZE)
                 ]
 
-    logger.info("Changelog:\n", changelog)
+    logger.info("Changelog:")
+    for move in changelog:
+        logger.info(move)
     katago_process.terminate()
     cap.release()
 

@@ -91,7 +91,7 @@ def get_best_variation(
     best_variation = variations[int(diffs[0][0])]
     best_sequence = []
     for color, sgf_position in best_variation:
-        cell = Cell.BLACK if color == "b" else Cell.WHITE
+        cell = Cell.BLACK if color == "B" else Cell.WHITE
         position = convert_coordinate_to_move(sgf_position)
         best_sequence.append((cell, position))
     return best_sequence
