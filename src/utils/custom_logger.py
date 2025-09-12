@@ -38,7 +38,7 @@ class ColorFormatter(logging.Formatter):
 
 
 def get_color_logger(
-    name: str = "MyLogger", level: int = logging.DEBUG
+    name: str = "ColorLogger", level: int = logging.DEBUG
 ) -> logging.Logger:
     logger = logging.getLogger(name)
     logger.setLevel(level)

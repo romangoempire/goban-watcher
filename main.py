@@ -1,16 +1,24 @@
+import argparse
+import json
+import os
 import time
 from copy import deepcopy
+from datetime import datetime
+from pathlib import Path
 
 import cv2
 import numpy as np
 from cv2.typing import MatLike
+from sgfmill import sgf
 
 from src import (
+    BACKUP_PATH,
     CELL_SIZE,
     CORNER_INDEXES,
     GRID_SIZE,
     HALF_CELL_SIZE,
     HOSHIS,
+    RECORDING_PATH,
     SCREEN_SIZE,
 )
 from src.stone_classification import load_rf
@@ -26,6 +34,9 @@ from src.utils.game import Cell, Game
 from src.utils.katago_helper import get_best_variation, start_katago_process
 
 RF_PATH = "weights/random_forest_model.pkl"
+
+MAX_DEPTH = 9
+AMOUNT_IDENTICAL_IMAGES = 15
 
 
 def default_mouse_callback(event, x, y, flags, param):
@@ -43,8 +54,16 @@ def setup_corners(cap: cv2.VideoCapture) -> list[list[int]]:
 
     while True:
         key = cv2.waitKey(1) & 0xFF
-        if key == ord("q"):
+        if key in (13, 10):  # Enter/Return
             break
+        if key == ord("r"):
+            logger.debug("Reset corners")
+            corners = default_corners(shape)
+            continue
+        # TODO(2025-09-12 15:09:30): Maybe add "l" to load corners instead of passing a cli flag?
+        if key == ord("s"):
+            save_corners_to_file(corners)
+            continue
 
         ret, frame = cap.read()
         display_img = deepcopy(frame)
@@ -73,6 +92,22 @@ def setup_corners(cap: cv2.VideoCapture) -> list[list[int]]:
         cv2.imshow("Transformed", display_transformed_frame)
     cv2.destroyAllWindows()
     return corners
+
+
+def save_corners_to_file(corners: list[list[int]]) -> None:
+    with open(Path.joinpath(BACKUP_PATH, "corners.json"), "w") as f:
+        json.dump(corners, f, indent=4)
+    logger.info(f"Saved corners to: {BACKUP_PATH}")
+
+
+def try_to_load_corners_from_file() -> list[list[int]] | None:
+    if not Path.exists(corners_path):
+        logger.warning(
+            f"No corner backup found in: {corners_path}. Manual setup required"
+        )
+        return None
+    with open(corners_path) as f:
+        return json.load(f)
 
 
 def classify_all_cells(model, frame: MatLike) -> list[Cell]:
@@ -162,138 +197,245 @@ def diff_between_boards(current_board: list[list[Cell]], new_board: list[Cell]) 
             diff.append(
                 {"position": (row, col), "current": current_cell, "new": new_cell}
             )
-
     return diff
 
 
+def get_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Example CLI with argparse")
+    parser.add_argument(
+        "-c", "--camera", type=int, default=0, help="Camera index. Starts at 0"
+    )
+    parser.add_argument(
+        "--enable-katago",
+        action="store_true",
+        default=False,
+        dest="use_katago",
+        help="Activates KataGo for move reconstruction",
+    )
+    parser.add_argument(
+        "--identical-frames",
+        type=int,
+        default=AMOUNT_IDENTICAL_IMAGES,
+        help="Amount of identical frames required to trigger stone evaluation. Default is 15 for 30fps -> 0.5s",
+    )
+    parser.add_argument(
+        "--use-saved-corners",
+        action="store_true",
+        default=False,
+        dest="use_saved_corners",  # optional: name the positive concept
+        help='Uses saved corners instead of manual setup. Press "s" after manual setup is done to save corners',
+    )
+    return parser.parse_args()
+
+
+def convert_to_sgf_position(position):
+    return (GRID_SIZE - 1 - position[1], position[0])
+
+
+def add_move_to_sgf(
+    child: sgf.Tree_node, color: str, position: tuple[int, int]
+) -> sgf.Tree_node:
+    sgf_position = convert_to_sgf_position(position)
+    new_child = child.new_child()
+    new_child.set_move(color.lower(), sgf_position)
+    return new_child
+
+
+def save_sgf_to_file(sgf_game) -> None:
+    logger.debug("Saving SGF")
+    with open((f"{RECORDING_PATH}/{timestamp}.sgf"), "wb") as f:
+        f.write(sgf_game.serialise())
+
+
+def add_chaos_to_sgf(child: sgf.Tree_node, moves: list[dict]) -> sgf.Tree_node:
+    new_child = child.new_child()
+
+    # in sgf add move via AE|AB|AW must include all moves so they must be group by Cell
+    # e.g AB[dd][de] => add two black stones next to each other in "edit" mode
+    black_moves = [m for m in moves if m["new"] == Cell.BLACK.value]
+    white_moves = [m for m in moves if m["new"] == Cell.WHITE.value]
+    empty_moves = [m for m in moves if m["new"] == Cell.EMPTY.value]
+
+    groups = [black_moves, white_moves, empty_moves]
+    for group in groups:
+        if len(group) == 0:
+            continue
+        color = str(group[0]["new"])
+        positions = [convert_to_sgf_position(move["position"]) for move in group]
+        new_child.set(f"A{color.upper()}", positions)
+    return new_child
+
+
 def main() -> None:
-    logger = get_color_logger()
+    args = get_args()
 
-    # TODO EDIT CAMERA ID
-    cap = cv2.VideoCapture(0)
+    os.makedirs(BACKUP_PATH, exist_ok=True)
+    os.makedirs(RECORDING_PATH, exist_ok=True)
+
+    cap = cv2.VideoCapture(args.camera)
+    logger.info(f"Using Camera {args.camera}")
+
     if not cap.isOpened():
-        exit()
+        logger.error("Camera could not be openend")
+        exit(1)
 
+    # TODO(2025-09-12 23:09:85): merge default and transformed into a single one
+    # Mouse movement will only be allowed up to border of default one
     cv2.namedWindow("Default")
     cv2.setMouseCallback("Default", default_mouse_callback)
     cv2.namedWindow("Transformed")
 
-    # if the program is restarted a lot it might be easier
-    # to have the corners already setup
-    # corners = [[521, 338], [1264, 332], [1382, 1049], [331, 1044]]
-    corners = setup_corners(cap)
-    logger.debug(corners)
+    corners = None
+    if args.use_saved_corners:
+        corners = try_to_load_corners_from_file()
 
+    if corners:
+        logger.debug("Corner backup found and loaded")
+    else:
+        corners = setup_corners(cap)
+
+    logger.debug("Katago enabled. Trying to start it ...")
     model = load_rf(RF_PATH)
-    katago_process = start_katago_process()
+
+    katago_process = None
+    if args.use_katago:
+        katago_process = start_katago_process()
+
+    logger.debug("Katago started successfully")
+
     visual_board = base_visual_board()
 
     last_results = []
-    changelog = []
 
+    # handles game logic
     game = Game()
+
+    # handles game recording
+    sgf_game = sgf.Sgf_game(size=19)
+    sgf_root = sgf_game.get_root()
+    sgf_child = sgf_root.new_child()
 
     while True:
         key = cv2.waitKey(1) & 0xFF
-        if key == ord("q"):
+        if key in [ord("q"), 27]:  # 27 = ESC
             break
 
         _, frame = cap.read()
-        img = convert_to_top_down(frame, corners)
-        img = blur_and_sharpen(img)
-        results = classify_all_cells(model, img)
+        image = convert_to_top_down(frame, corners)
+        image = blur_and_sharpen(image)
+        classified_cells = classify_all_cells(model, image)
 
-        last_results.append(results)
+        last_results.append(classified_cells)
 
-        visual = add_stones_to_visual(visual_board.copy(), game.board)
-        complete = np.hstack((img, visual))  # type: ignore #
+        canvas = add_stones_to_visual(visual_board.copy(), game.board)
+        complete = np.hstack((image, canvas))  # type: ignore #
         cv2.imshow("Complete", complete)
 
-        # fill up lasts results
-        if len(last_results) < 15:
+        # last_results are empty at the start and have to be filled up at the start
+        # this initialisation process is ignored and the recording only starts
+        # when enough frames exists to be compared
+        if len(last_results) < args.identical_frames:
             continue
         # remove oldest result
         last_results.pop(0)
 
-        current_player, opponent_player = game.get_colors_current_and_opponent_player()
+        current_player, opponent_player = game.current_and_opponent_color()
 
-        # new state is idential to all past states => no movement
-        if all(r == results for r in last_results):
-            changes = diff_between_boards(game.board, results)
-            if not changes:
+        # not all the same => movement exists
+        if not all(r == classified_cells for r in last_results):
+            continue
+
+        changes = diff_between_boards(game.board, classified_cells)
+
+        if len(changes) == 0:
+            continue
+
+        # single new move
+        if (
+            len(changes) == 1
+            and changes[0]["current"] == Cell.EMPTY.value
+            and changes[0]["new"] == current_player
+        ):
+            position = changes[0]["position"]
+            if game.is_empty(position):
+                logger.info(f"New Move: {changes[0]['new']} - {position}")
+                game.add_move(*position)
+                sgf_child = add_move_to_sgf(sgf_child, str(changes[0]["new"]), position)
+                save_sgf_to_file(sgf_game)
                 continue
+            else:
+                logger.fatal(f"Illegal Move: {changes[0]['new']} - {position}")
+                exit(1)
 
-            changelog += changes
-
-            # single new move
-            if (
-                len(changes) == 1
-                and changes[0]["current"] == 0
-                and changes[0]["new"] == current_player
-            ):
-                position = changes[0]["position"]
-                if game.is_empty(position):
-                    logger.info(f"New Move: {changes[0]['new']} - {position}")
-                    game.add_move(*position)
-                    continue
-                else:
-                    logger.fatal(f"Illegal Move: {changes[0]['new']} - {position}")
-
-            # two new moves
-            if (
-                len(changes) == 2
-                and all(d["current"] == 0 for d in changes)  # only additions
-                and set([changes[0]["new"], changes[1]["new"]])
-                == set([1, 2])  # one move each
-            ):
-                logger.info("Two Moves")
-                changes = (
-                    changes if changes[0]["new"] == current_player else changes[::-1]
+        # two new moves
+        if (
+            len(changes) == 2
+            and all(d["current"] == 0 for d in changes)  # only additions
+            # one move of each color
+            and set([changes[0]["new"], changes[1]["new"]])
+            == set([Cell.BLACK.value, Cell.WHITE.value])
+        ):
+            logger.info("Two Moves")
+            ordered_changes = (
+                changes if changes[0]["new"] == current_player else changes[::-1]
+            )
+            for move in ordered_changes:
+                logger.info(f"Move: {move['new']} - {move['position']}")
+                game.add_move(*move["position"])
+                sgf_child = add_move_to_sgf(
+                    sgf_child, str(move["new"]), move["position"]
                 )
-                for c in changes:
-                    logger.info(f"Move: {c['new']} - {c['position']}")
-                    game.add_move(*c["position"])
-                continue
+            save_sgf_to_file(sgf_game)
+            continue
 
-            # capture happended. One new move of current_player and 1+ removals of opponent
-            add_moves = [c for c in changes if c["current"] == 0]
-            remove_moves = [c for c in changes if c["new"] == 0]
-            removed_colors = set([rm["current"] for rm in remove_moves])
-            if (
-                len(add_moves) == 1
-                and add_moves[0]["new"] == current_player
-                and len(removed_colors) == 1
-                and remove_moves[0]["current"] == opponent_player
-            ):
-                new_move = add_moves[0]
-                logger.info(
-                    f"Move (Capture): {new_move['new']} - {new_move['position']}"
-                )
-                game.add_move(*new_move["position"])
+        # capture happended. One new move of current_player and 1+ removals of opponent
+        moves_added = [c for c in changes if c["current"] == 0]
+        moves_removed = [c for c in changes if c["new"] == 0]
+        removed_colors = set([rm["current"] for rm in moves_removed])
+        if (
+            len(moves_added) == 1
+            and moves_added[0]["new"] == current_player
+            and len(removed_colors) == 1
+            and moves_removed[0]["current"] == opponent_player
+        ):
+            move = moves_added[0]
+            logger.info(f"Move (Capture): {move['new']} - {move['position']}")
+            game.add_move(*move["position"])
+            sgf_child = add_move_to_sgf(sgf_child, str(move["new"]), move["position"])
+            save_sgf_to_file(sgf_game)
+            continue
 
-            # multiple moves added
-            are_valid_additions = all(c["current"] == Cell.EMPTY for c in changes)
+        # multiple moves added
+        if katago_process:
+            valid_addition = all(c["current"] == Cell.EMPTY for c in changes)
             amount_player_stones = len(
                 [c["new"] for c in changes if c["new"] == current_player]
             )
             amount_opponent_stones = len(
                 [c["new"] for c in changes if c["new"] == opponent_player]
             )
-            valid_amounts = amount_player_stones - amount_opponent_stones in [0, 1]
+            # New moves must be evenly distributed between both players
+            valid_offset = [0, 1]
+            valid_amounts = (
+                amount_player_stones - amount_opponent_stones in valid_offset
+            )
 
+            print(valid_addition)
+            print(valid_amounts)
+            print(1 < len(moves_added) < MAX_DEPTH)
             if (
-                are_valid_additions
+                valid_addition
                 and valid_amounts
-                and len(add_moves) > 1
-                and len(add_moves) < 8  # More moves == more variation -> exponential
-                and len(remove_moves) == 0
+                # TODO(2025-09-12 18:09:41): add it as parameter. Add hint that the amount of variations increases drastically.
+                and 1 < len(moves_added) < MAX_DEPTH
+                and len(moves_removed) == 0
             ):
                 logger.info(
                     "Multiple new moves. Using katago to guess the correct sequence"
                 )
                 new_moves = []
-                for new_move in add_moves:
-                    new_moves.append((new_move["new"], new_move["position"]))
+                for move in moves_added:
+                    new_moves.append((move["new"], move["position"]))
 
                 sequence = get_best_variation(
                     katago_process,
@@ -305,28 +447,38 @@ def main() -> None:
                     color, position = move
                     logger.info(f"Move: {color} - {position}")
                     game.add_move(*position)
+                    sgf_child = add_move_to_sgf(sgf_child, str(color), position)
+                save_sgf_to_file(sgf_game)
                 continue
 
-            # Chaos. Possible reasons:
-            # A -> capture and moves after
-            # B -> capture and stone was moved or wrongly recognized at the start
-            # C -> illegal moves
-            if len(add_moves) > 0 or len(remove_moves) > 0:
-                logger.warning(
-                    "Game State changed drastically! Unable to extract sequence and therefore updating the board as whole to the new state"
-                )
-                game.board = [
-                    results[i * GRID_SIZE : i * GRID_SIZE + GRID_SIZE]
-                    for i in range(GRID_SIZE)
-                ]
+        if len(moves_added) > 0 or len(moves_removed) > 0:
+            # Chaos.
+            # Possible reasons:
+            #   A -> capture and moves after
+            #   B -> capture and stone was moved or wrongly recognized at the start
+            #   C -> illegal moves
 
-    logger.info("Changelog:")
-    for move in changelog:
-        logger.info(move)
-    katago_process.terminate()
+            logger.warning(
+                "Game State changed drastically! Unable to extract sequence and therefore updating the board as whole to the new state"
+            )
+            game.board = [
+                classified_cells[i * GRID_SIZE : i * GRID_SIZE + GRID_SIZE]
+                for i in range(GRID_SIZE)
+            ]
+            sgf_child = add_chaos_to_sgf(sgf_child, moves_added + moves_removed)
+            save_sgf_to_file(sgf_game)
+
     cap.release()
+
+    save_sgf_to_file(sgf_game)
+
+    if katago_process:
+        katago_process.terminate()
 
 
 if __name__ == "__main__":
     default_mouse = [0, 0]
+    timestamp = str(datetime.now().strftime("%d%m%Y%H%M%S"))
+    corners_path = Path.joinpath(BACKUP_PATH, "corners.json")
+    logger = get_color_logger()
     main()

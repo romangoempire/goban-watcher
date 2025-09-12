@@ -35,11 +35,12 @@ def blur_and_sharpen(img: MatLike) -> MatLike:
 
 
 def convert_to_top_down(frame: MatLike, corners: list) -> MatLike:
-    matrix = cv2.getPerspectiveTransform(
-        np.float32(corners),
-        np.float32(
-            [[0, 0], [SCREEN_SIZE, 0], [SCREEN_SIZE, SCREEN_SIZE], [0, SCREEN_SIZE]]
-        ),
+    src_points = np.array(corners, dtype=np.float32).reshape(4, 2)
+    dst_points = np.array(
+        [[0, 0], [SCREEN_SIZE, 0], [SCREEN_SIZE, SCREEN_SIZE], [0, SCREEN_SIZE]],
+        dtype=np.float32,
     )
+
+    matrix = cv2.getPerspectiveTransform(src_points, dst_points)
     new_shape = (SCREEN_SIZE, SCREEN_SIZE)
     return cv2.warpPerspective(frame, matrix, new_shape)

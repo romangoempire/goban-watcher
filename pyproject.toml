@@ -1,0 +1,22 @@
+[project]
+name = "goban-watcher"
+version = "0.2.0"
+description = "Live Go Game recording with Computer Vision"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "icecream>=2.1.7",
+    "ipykernel>=6.30.1",
+    "jupyter>=1.1.1",
+    "matplotlib>=3.10.6",
+    "numpy>=2.3.3",
+    "opencv-python>=4.11.0.86",
+    "pandas>=2.3.2",
+    "pygame>=2.6.1",
+    "scikit-learn>=1.7.2",
+    "seaborn>=0.13.2",
+    "sgfmill>=1.1.1",
+    "torch>=2.8.0",
+    "torchvision>=0.23.0",
+    "tqdm>=4.67.1",
+]

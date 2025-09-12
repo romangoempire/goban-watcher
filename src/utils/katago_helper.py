@@ -1,16 +1,52 @@
 import json
 import subprocess
+from pathlib import Path
 
 import numpy as np
+from sgfmill import sgf
+from tqdm import tqdm
 
 from src import GRID_SIZE, KATAGO_PATH, KOMI
 from src.utils.game import Cell
-from src.utils.sgf_helper import (
-    convert_cell_to_player_color,
-    convert_coordinate_to_move,
-    convert_move_to_coordinate,
-    opponent,
-)
+
+X_AXIS = "ABCDEFGHJKLMNOPQRST"
+
+
+def convert_cell_to_player_color(cell: Cell) -> str:
+    return "B" if cell == Cell.BLACK else "W"
+
+
+def opponent(current: str) -> str:
+    return "B" if current == "W" else "W"
+
+
+def moves_of_player(moves: list[tuple[str, str]], color: str) -> list[tuple[str, str]]:
+    return [move for move in moves if move[0] == color]
+
+
+def get_moves(path: Path) -> list[tuple[str, str]]:
+    with open(str(path), "rb") as f:
+        game = sgf.Sgf_game.from_bytes(f.read())
+
+    moves = []
+    for node in game.get_main_sequence():
+        player, move = node.get_move()
+        if not move:
+            continue
+
+        assert player, "No Player"
+
+        move_data = (player.upper(), convert_move_to_coordinate(*move))
+        moves.append(move_data)
+    return moves
+
+
+def convert_move_to_coordinate(x: int, y: int) -> str:
+    return f"{X_AXIS[x]}{GRID_SIZE - y}"
+
+
+def convert_coordinate_to_move(coordinate: str) -> tuple[int, int]:
+    return X_AXIS.index(coordinate[0]), GRID_SIZE - int(coordinate[1:])
 
 
 def send_position_to_katago(process, data: dict) -> None:
@@ -66,7 +102,7 @@ def get_best_variation(
         send_position_to_katago(process, data)
 
     results = {str(i): [] for i in range(len(variations))}
-    for i in range(amount_moves * len(variations)):
+    for i in tqdm(range(amount_moves * len(variations))):
         while True:
             new_data = process.stdout.readline().strip()
             if new_data:
