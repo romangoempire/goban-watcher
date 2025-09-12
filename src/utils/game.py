@@ -12,6 +12,9 @@ class Cell(IntEnum):
     BLACK = auto()
     WHITE = auto()
 
+    def __str__(self) -> str:
+        return {"EMPTY": "e", "BLACK": "b", "WHITE": "w"}[self.name]
+
 
 class Game:
     def __init__(self):

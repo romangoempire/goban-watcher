@@ -143,3 +143,6 @@ pyrightconfig.json
 katago
 gtp_logs
 analysis_logs
+
+backup
+recording

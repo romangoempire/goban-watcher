@@ -5,6 +5,9 @@ IMG_PATH = ROOT_DIR.joinpath("images")
 DATA_PATH = ROOT_DIR.joinpath("data")
 SGF_PATH = ROOT_DIR.joinpath("sgf")
 KATAGO_PATH = ROOT_DIR.joinpath("katago")
+BACKUP_PATH = ROOT_DIR.joinpath("backup")
+RECORDING_PATH = ROOT_DIR.joinpath("recording")
+
 
 GRID_SIZE = 19
 KOMI = 6.5

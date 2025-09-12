@@ -1,7 +1,7 @@
 [project]
 name = "goban-watcher"
 version = "0.1.0"
-description = "Add your description here"
+description = "Live Go Game recording with Computer Vision"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
