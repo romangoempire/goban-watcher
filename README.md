@@ -46,7 +46,7 @@ So you have to setup the corners manually the first times.
 > [!Warning]
 > Since the setup of the corners is manual and happens at the start of the recording any movement of the board during the game will break the recording!
 
-![start](docs/images/001.jpeg)
+![start](/docs/images/001.jpeg)
 
 You will see two windows of which one is called "Default". This window is used to setup the corners.
 Press 1-4 on your keyboard to select one corner. It will follow your mouse cursor and you can release it by pressing
@@ -55,10 +55,10 @@ the same number or another number.
 
 The "Transformed" window can be used to see if the aligment is correct. Also consider that the final sgf will be the same orientation as the window shows. The recommendation is to start with the top left corner (for the black player) as corner 1 and go clockwise for each corner. The top right corner should be 2 from the view of the black player.
 
-![setup-corners](docs/images/002.jpeg)
+![setup-corners](/docs/images/002.jpeg)
 Example how the finished alignment should look like.
 
-![setup-corners](docs/images/002.jpeg)
+![setup-corners](/docs/images/002.jpeg)
 Example how the finished "Transformed" window should look like.
 
 #### Saving the corners
@@ -75,6 +75,6 @@ Press `enter` or `return` to start recording. When the real board and digital bo
 Each move now should be recorded and also the sgf, located in `/recodings`, should be update after each change.
 If more than then 3 stones are recognized at the same time it will "edit" the sgf and add all at the same time (if KataGo is disabled).
 
-![recording](docs/images/004-recording.jpeg)
+![recording](/docs/images/004-recording.jpeg)
 
 To stop the recording press `q` or `esc` which will save the game one more time and exit the application.
