@@ -1,6 +1,6 @@
 # Goban Watcher
 
-
+This project aims to automatically record Go games with the help of cameras and computer vision.
 
 ### Prerequisites
 > [!NOTE]
@@ -22,7 +22,7 @@ To be able to use KataGo the following steps **must** be taken:
 
 ### Starting the application
 The easiest way to get up and running is to use [uv](https://docs.astral.sh/uv/).
-start the application with:
+Start the application with:
 ```sh
 uv run main.py
 ```
@@ -30,36 +30,35 @@ Use `uv run main.py --help` to see all available flags.
 
 ### Usage
 
-To be able to use Goban Watcher you need a Camera / Webcam that is connected to your computer or laptop.
-Place the camera or webcam as a top-down view. Having it also from the side looking at the board is also fine, but could
-lead to issues if the stones are poorly placed.
+Goban Watcher run only on desktop right now and requires a camera or webcam that is connected.
+The camera or webcam should be placed with top-down view or sligthly from the side.
+The more the angle to more distortion will happen which will lead to issues if the stones are poorly placed.
 
 > [!WARNING]
-> The application is still very bear bones and not very usability friendly.
+> The application is still very bear bones and not very user friendly.
 > I hope to improve this in the future. So for now I try to document it as much a possible here.
 
 #### Setup Corners
 
 This is the first and most manual part of the setup. The application does not have an automatic board detection yet.
-So you have to setup the corners manually the first times.
+So setting up the corners requires manual work.
 
 > [!Warning]
 > Since the setup of the corners is manual and happens at the start of the recording any movement of the board during the game will break the recording!
 
 ![start](/docs/images/001-start.jpeg)
 
-You will see two windows of which one is called "Default". This window is used to setup the corners.
-Press 1-4 on your keyboard to select one corner. It will follow your mouse cursor and you can release it by pressing
+Two windows shoud appear. One of which is called "Default". This window is used to setup the corners.
+Press 1-4 on the keyboard to select one of the corners. It will follow the mouse cursor and it can release it by pressing
 the same number or another number.
 
-
-The "Transformed" window can be used to see if the aligment is correct. Also consider that the final sgf will be the same orientation as the window shows. The recommendation is to start with the top left corner (for the black player) as corner 1 and go clockwise for each corner. The top right corner should be 2 from the view of the black player.
+The "Transformed" window can be used to check the aligment. The sgf will have the same orientation as the window displays. The recommendation is to start with the top left corner (from blacks perspective) as corner 1 and go clockwise for each corner. The top right corner should be 2 from the view of the black player.
 
 ![setup-corners](/docs/images/002-setup-corners.jpeg)
-Example how the finished alignment should look like.
+Example of the finished aligment on "Default" window.
 
 ![setup-corners](/docs/images/003-setup-corners-result.jpeg)
-Example how the finished "Transformed" window should look like.
+Example of the finished aligment on "Transformed" window. The stones do not have to be perfect on the intersection. The actual images that are used to detect the stones are larger than the green squares visible for aligment.
 
 #### Saving the corners
 
@@ -78,3 +77,8 @@ If more than then 3 stones are recognized at the same time it will "edit" the sg
 ![recording](/docs/images/004-recording.jpeg)
 
 To stop the recording press `q` or `esc` which will save the game one more time and exit the application.
+
+
+## Research
+
+- Initial development was done by Roman Gerloff for his bachelor thesis: [Go Game Capture and Reconstruction of Missing Moves Using Deep Learning Techniques](https://ieeexplore.ieee.org/abstract/document/11114356)
