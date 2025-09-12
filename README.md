@@ -46,7 +46,7 @@ So you have to setup the corners manually the first times.
 > [!Warning]
 > Since the setup of the corners is manual and happens at the start of the recording any movement of the board during the game will break the recording!
 
-![start](/docs/images/001.jpeg)
+![start](/docs/images/001-start.jpeg)
 
 You will see two windows of which one is called "Default". This window is used to setup the corners.
 Press 1-4 on your keyboard to select one corner. It will follow your mouse cursor and you can release it by pressing
@@ -58,7 +58,7 @@ The "Transformed" window can be used to see if the aligment is correct. Also con
 ![setup-corners](/docs/images/002-setup-corners.jpeg)
 Example how the finished alignment should look like.
 
-![setup-corners](/docs/images/002-setup-corners-result.jpeg)
+![setup-corners](/docs/images/003-setup-corners-result.jpeg)
 Example how the finished "Transformed" window should look like.
 
 #### Saving the corners
