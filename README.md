@@ -55,10 +55,10 @@ the same number or another number.
 
 The "Transformed" window can be used to see if the aligment is correct. Also consider that the final sgf will be the same orientation as the window shows. The recommendation is to start with the top left corner (for the black player) as corner 1 and go clockwise for each corner. The top right corner should be 2 from the view of the black player.
 
-![setup-corners](/docs/images/002.jpeg)
+![setup-corners](/docs/images/002-setup-corners.jpeg)
 Example how the finished alignment should look like.
 
-![setup-corners](/docs/images/002.jpeg)
+![setup-corners](/docs/images/002-setup-corners-result.jpeg)
 Example how the finished "Transformed" window should look like.
 
 #### Saving the corners
