@@ -33,8 +33,8 @@ class Game:
     def _initialize_board() -> list[list[Cell]]:
         return [[Cell.EMPTY for _ in range(GRID_SIZE)] for _ in range(GRID_SIZE)]
 
-    def get_colors_current_and_opponent_player(self) -> tuple[Cell, Cell]:
-        """Returns the color of the current player and the opponent based on self.move."""
+    def current_and_opponent_color(self) -> tuple[Cell, Cell]:
+        """Returns the color of the current player and the opponent based on self.move"""
         current_color, opponent_color = (
             (Cell.BLACK, Cell.WHITE),
             (Cell.WHITE, Cell.BLACK),
@@ -45,7 +45,7 @@ class Game:
         """Adds Cell at position x, y for the player whose turn it is."""
         assert self.is_empty((x, y)), "Position occupied"
 
-        current_color, opponent_color = self.get_colors_current_and_opponent_player()
+        current_color, opponent_color = self.current_and_opponent_color()
 
         # create copy since move might be invalid and should not change the current boards
         board_after_capture = deepcopy(self.board)
