@@ -30,13 +30,12 @@ Use `uv run main.py --help` to see all available flags.
 
 ### Usage
 
-Goban Watcher run only on desktop right now and requires a camera or webcam that is connected.
-The camera or webcam should be placed with top-down view or sligthly from the side.
-The more the angle to more distortion will happen which will lead to issues if the stones are poorly placed.
+Goban Watcher runs only on desktop and requires a camera or webcam.
+The camera should be placed with top-down view or sligthly from the side.
 
 > [!WARNING]
 > The application is still very bear bones and not very user friendly.
-> I hope to improve this in the future. So for now I try to document it as much a possible here.
+> So for now I try to document it as much a possible here.
 
 #### Setup Corners
 
